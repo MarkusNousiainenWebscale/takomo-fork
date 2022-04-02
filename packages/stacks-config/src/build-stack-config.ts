@@ -1,5 +1,4 @@
 import {
-  CommandContext,
   parseBoolean,
   parseCommandRole,
   parseOptionalBoolean,
@@ -8,6 +7,7 @@ import {
   parseStringArray,
 } from "@takomo/core"
 import { ValidationError } from "@takomo/util"
+import { ObjectSchema } from "joi"
 import { err, ok, Result } from "neverthrow"
 import { StackConfig } from "./model"
 import { parseAccountIds } from "./parse-account-ids"
@@ -20,15 +20,12 @@ import { parseTags } from "./parse-tags"
 import { parseTemplate } from "./parse-template"
 import { parseTemplateBucket } from "./parse-template-bucket"
 import { parseTimeout } from "./parse-timeout"
-import { createStackConfigSchema } from "./schema"
 
 export const buildStackConfig = (
-  ctx: CommandContext,
   record: Record<string, unknown>,
+  stackConfigSchema: ObjectSchema,
 ): Result<StackConfig, ValidationError> => {
-  const { error } = createStackConfigSchema({
-    regions: ctx.regions,
-  }).validate(record, {
+  const { error } = stackConfigSchema.validate(record, {
     abortEarly: false,
     convert: false,
   })

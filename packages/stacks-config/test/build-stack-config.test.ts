@@ -1,6 +1,7 @@
 import { AwsClientProvider } from "@takomo/aws-clients"
 import { CommandContext, TakomoProjectConfig } from "@takomo/core"
 import { mock } from "jest-mock-extended"
+import { createStackConfigSchema } from "../dist"
 import { buildStackConfig } from "../src"
 
 const emptyStackConfig = {
@@ -49,9 +50,15 @@ const ctx: CommandContext = {
   outputFormat: "text",
 }
 
+const schema = createStackConfigSchema({
+  regions: ["eu-west-1"],
+  denyProject: false,
+  requireStackName: false,
+})
+
 describe("#buildStackConfig", () => {
   test("empty config object", () => {
-    expect(buildStackConfig(ctx, {})._unsafeUnwrap()).toStrictEqual(
+    expect(buildStackConfig({}, schema)._unsafeUnwrap()).toStrictEqual(
       emptyStackConfig,
     )
   })

@@ -1,6 +1,11 @@
-import { InternalStacksContext, isNotObsolete } from "@takomo/stacks-model"
+import {
+  InternalStacksContext,
+  isNotObsolete,
+  isWithinCommandPath,
+} from "@takomo/stacks-model"
 import { TkmLogger } from "@takomo/util"
 import { loadCurrentCfStacks } from "../common/load-current-cf-stacks"
+import { collectStacksRecursively } from "../list/list-stacks"
 import { DetectDriftInput, DetectDriftOutput } from "./model"
 
 export const detectDrift = async (
@@ -11,8 +16,8 @@ export const detectDrift = async (
   logger.info("Detecting drift, this might take a few minutes...")
   const { timer } = input
 
-  const stacksWithinCommandPath = ctx.stacks
-    .filter((stack) => stack.path.startsWith(input.commandPath))
+  const stacksWithinCommandPath = collectStacksRecursively(ctx)
+    .filter((stack) => isWithinCommandPath(stack.path, input.commandPath))
     .filter(isNotObsolete)
 
   const stackPairs = await loadCurrentCfStacks(logger, stacksWithinCommandPath)

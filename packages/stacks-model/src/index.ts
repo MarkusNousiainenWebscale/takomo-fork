@@ -3,6 +3,14 @@ export * from "./common"
 export { ROOT_STACK_GROUP_PATH } from "./constants"
 export { InternalStacksContext, StacksContext } from "./context"
 export * from "./hook"
+export {
+  InternalModule,
+  ModuleId,
+  ModuleInformation,
+  ModuleName,
+  ModulePath,
+  ModuleVersion,
+} from "./module"
 export * from "./resolver"
 export {
   createSchemaRegistry,
@@ -31,6 +39,7 @@ export {
   StackGroupProps,
 } from "./stack-group"
 export {
+  getModulePath,
   getStackName,
   getStackNames,
   getStackPath,

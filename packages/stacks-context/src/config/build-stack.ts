@@ -9,6 +9,7 @@ import {
   createStack,
   InternalStack,
   isWithinCommandPath,
+  ModuleInformation,
   normalizeStackPath,
   SchemaRegistry,
   StackGroup,
@@ -48,7 +49,7 @@ const buildTemplate = (
 
   return {
     dynamic,
-    filename: filename ?? stackPath.substr(1),
+    filename: filename ?? stackPath.slice(1),
   }
 }
 
@@ -121,12 +122,13 @@ export const buildStack = async (
   stackGroup: StackGroup,
   commandPath: CommandPath,
   status: ProcessStatus,
+  moduleInformation: ModuleInformation,
 ): Promise<InternalStack[]> => {
   const { stackName } = createAwsSchemas({ regions: ctx.regions })
 
   logger.debug(`Build stack with path '${node.path}'`)
 
-  const stackPath = node.path
+  const stackPath = moduleInformation.stackPathPrefix + node.path
   const stackVariables = createVariablesForStackConfigFile(
     ctx.variables,
     stackGroup,
@@ -136,8 +138,9 @@ export const buildStack = async (
   const stackConfig = await node.getConfig(stackVariables)
 
   const name =
-    stackConfig.name ||
-    makeStackName(stackPath, stackConfig.project || stackGroup.project)
+    moduleInformation.stackNamePrefix +
+    (stackConfig.name ??
+      makeStackName(stackPath, stackConfig.project || stackGroup.project))
 
   const regions =
     stackConfig.regions.length > 0 ? stackConfig.regions : stackGroup.regions
@@ -146,7 +149,7 @@ export const buildStack = async (
     throw new TakomoError(`Stack ${stackPath} has no regions`)
   }
 
-  const template = buildTemplate(stackPath, stackConfig.template)
+  const template = buildTemplate(node.path, stackConfig.template)
   validate(stackName, name, `Name of stack ${stackPath} is not valid`)
 
   const parameters = await buildParameters(
@@ -252,6 +255,7 @@ export const buildStack = async (
           cloudFormationClient,
           stackPolicy,
           stackPolicyDuringUpdate,
+          moduleInformation,
           path: exactPath,
           stackGroupPath: stackGroup.path,
           project: stackConfig.project ?? stackGroup.project,

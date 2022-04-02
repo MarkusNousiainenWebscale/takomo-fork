@@ -11,6 +11,9 @@ import {
 import { CommandRole, Project, Vars } from "@takomo/core"
 import {
   HookConfig,
+  ModuleId,
+  ModuleName,
+  ModuleVersion,
   ResolverName,
   StackPath,
   TemplateBucketConfig,
@@ -81,46 +84,42 @@ export interface TemplateConfig {
   readonly inline?: string
 }
 
-export interface StackConfig {
-  readonly project?: Project
-  readonly name?: StackName
-  readonly template: TemplateConfig
-  readonly templateBucket?: TemplateBucketConfig
-  readonly regions: ReadonlyArray<Region>
+export interface ConfigurableEntity {
   readonly accountIds?: ReadonlyArray<AccountId>
   readonly commandRole?: CommandRole
-  readonly timeout?: TimeoutConfig
-  readonly depends: ReadonlyArray<StackPath>
+  readonly templateBucket?: TemplateBucketConfig
   readonly tags: Map<TagKey, TagValue>
   readonly inheritTags: boolean
-  readonly parameters: Map<StackParameterKey, ParameterConfigs>
-  readonly data: Vars
+  readonly timeout?: TimeoutConfig
   readonly hooks: ReadonlyArray<HookConfig>
-  readonly capabilities?: ReadonlyArray<StackCapability>
+  readonly data: Vars
   readonly ignore?: boolean
   readonly obsolete?: boolean
   readonly terminationProtection?: boolean
+  readonly capabilities?: ReadonlyArray<StackCapability>
   readonly stackPolicy?: StackPolicyBody
   readonly stackPolicyDuringUpdate?: StackPolicyBody
   readonly schemas?: SchemasConfig
 }
 
-export interface StackGroupConfig {
-  readonly project?: Project
+export interface ModuleConfig extends ConfigurableEntity {
+  readonly id: ModuleId
+  readonly version: ModuleVersion
+  readonly name: ModuleName
+  readonly region?: Region
+  //readonly depends: ReadonlyArray<StackPath> TODO: Implement
+}
+
+export interface StackConfig extends ConfigurableEntity {
+  readonly name?: StackName
   readonly regions: ReadonlyArray<Region>
-  readonly accountIds?: ReadonlyArray<AccountId>
-  readonly commandRole?: CommandRole
-  readonly templateBucket?: TemplateBucketConfig
-  readonly tags: Map<TagKey, TagValue>
-  readonly inheritTags: boolean
-  readonly timeout?: TimeoutConfig
-  readonly hooks: ReadonlyArray<HookConfig>
-  readonly data: Vars
-  readonly ignore?: boolean
-  readonly obsolete?: boolean
-  readonly terminationProtection?: boolean
-  readonly capabilities?: ReadonlyArray<StackCapability>
-  readonly stackPolicy?: StackPolicyBody
-  readonly stackPolicyDuringUpdate?: StackPolicyBody
-  readonly schemas?: SchemasConfig
+  readonly project?: Project
+  readonly template: TemplateConfig
+  readonly depends: ReadonlyArray<StackPath>
+  readonly parameters: Map<StackParameterKey, ParameterConfigs>
+}
+
+export interface StackGroupConfig extends ConfigurableEntity {
+  readonly regions: ReadonlyArray<Region>
+  readonly project?: Project
 }

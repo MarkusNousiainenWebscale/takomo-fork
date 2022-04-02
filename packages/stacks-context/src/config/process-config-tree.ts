@@ -1,12 +1,15 @@
 import { CredentialManager } from "@takomo/aws-clients"
 import { IamRoleArn } from "@takomo/aws-model"
-import { CommandContext } from "@takomo/core"
+import { InternalCommandContext } from "@takomo/core"
 import { HookRegistry } from "@takomo/stacks-hooks"
 import {
   CommandPath,
   createStackGroup,
+  InternalModule,
   InternalStack,
   isWithinCommandPath,
+  ModuleInformation,
+  ModulePath,
   normalizeStackPath,
   ROOT_STACK_GROUP_PATH,
   SchemaRegistry,
@@ -22,6 +25,8 @@ import {
   checkObsoleteDependencies,
   processStackDependencies,
 } from "../dependencies"
+import { StacksConfigRepository } from "../model"
+import { buildModule } from "./build-module"
 import { buildStack } from "./build-stack"
 import { ConfigTree, StackGroupConfigNode } from "./config-tree"
 import { doCreateStackGroup } from "./create-stack-group"
@@ -30,6 +35,8 @@ export class ProcessStatus {
   readonly #stackGroups = new Map<StackGroupPath, StackGroup>()
   readonly #stacks = new Map<StackPath, InternalStack>()
   readonly #newStacks = new Map<StackPath, InternalStack>()
+  readonly #newModules = new Map<ModulePath, InternalModule>()
+  readonly #modules = new Map<ModulePath, InternalModule>()
 
   getRootStackGroup = (): StackGroup =>
     this.getStackGroup(ROOT_STACK_GROUP_PATH)
@@ -39,6 +46,8 @@ export class ProcessStatus {
 
   isStackProcessed = (path: StackPath): boolean => this.#stacks.has(path)
 
+  isModuleProcessed = (path: ModulePath): boolean => this.#modules.has(path)
+
   setStackGroupProcessed = (stackGroup: StackGroup): void => {
     this.#stackGroups.set(stackGroup.path, stackGroup)
   }
@@ -46,6 +55,11 @@ export class ProcessStatus {
   setStackProcessed = (stack: InternalStack): void => {
     this.#stacks.set(stack.path, stack)
     this.#newStacks.set(stack.path, stack)
+  }
+
+  setModuleProcessed = (module: InternalModule): void => {
+    this.#modules.set(module.path, module)
+    this.#newModules.set(module.path, module)
   }
 
   getStackGroup = (path: StackGroupPath): StackGroup => {
@@ -57,55 +71,73 @@ export class ProcessStatus {
     return stackGroup
   }
 
-  getStack = (path: StackPath): InternalStack => {
-    const stack = this.#stacks.get(path)
-    if (!stack) {
-      throw new Error(`Stack '${path}' is not processed`)
-    }
-
-    return stack
-  }
-
   getNewlyProcessedStacks = (): InternalStack[] =>
     Array.from(this.#newStacks.values())
   getStackGroups = (): StackGroup[] => Array.from(this.#stackGroups.values())
   getStacks = (): InternalStack[] => Array.from(this.#stacks.values())
+  getModules = (): InternalModule[] => Array.from(this.#modules.values())
 
-  reset = (): void => this.#newStacks.clear()
+  reset = (): void => {
+    this.#newStacks.clear()
+    this.#newModules.clear()
+  }
 }
 
 const populateChildrenAndStacks = (
   stackGroup: StackGroup,
   allStacks: ReadonlyArray<InternalStack>,
   allStackGroups: ReadonlyArray<StackGroup>,
+  allModules: ReadonlyArray<InternalModule>,
 ): StackGroup => {
   const children = allStackGroups
     .filter((sg) => sg.parentPath === stackGroup.path)
-    .map((child) => populateChildrenAndStacks(child, allStacks, allStackGroups))
+    .map((child) =>
+      populateChildrenAndStacks(child, allStacks, allStackGroups, allModules),
+    )
 
   const stacks = allStacks
     .filter((s) => s.stackGroupPath === stackGroup.path)
     .filter((s) => !s.ignore)
 
+  const modules = allModules.filter((m) => m.parent.path === stackGroup.path)
+
   return createStackGroup({
     ...stackGroup.toProps(),
     stacks,
     children,
+    modules,
   })
 }
 
-const processStackGroupConfigNode = async (
-  ctx: CommandContext,
-  logger: TkmLogger,
-  credentialManager: CredentialManager,
-  credentialManagers: Map<IamRoleArn, CredentialManager>,
-  resolverRegistry: ResolverRegistry,
-  schemaRegistry: SchemaRegistry,
-  hookRegistry: HookRegistry,
-  commandPath: CommandPath,
-  status: ProcessStatus,
-  node: StackGroupConfigNode,
-): Promise<void> => {
+interface ProcessStackGroupConfigNodeProps {
+  readonly ctx: InternalCommandContext
+  readonly logger: TkmLogger
+  readonly credentialManager: CredentialManager
+  readonly credentialManagers: Map<IamRoleArn, CredentialManager>
+  readonly resolverRegistry: ResolverRegistry
+  readonly schemaRegistry: SchemaRegistry
+  readonly hookRegistry: HookRegistry
+  readonly commandPath: CommandPath
+  readonly status: ProcessStatus
+  readonly node: StackGroupConfigNode
+  readonly configRepository: StacksConfigRepository
+  readonly moduleInformation: ModuleInformation
+}
+
+const processStackGroupConfigNode = async ({
+  ctx,
+  logger,
+  credentialManager,
+  credentialManagers,
+  resolverRegistry,
+  schemaRegistry,
+  hookRegistry,
+  commandPath,
+  status,
+  node,
+  configRepository,
+  moduleInformation,
+}: ProcessStackGroupConfigNodeProps): Promise<void> => {
   logger.trace(`Process stack group config node with path '${node.path}'`)
   if (!isWithinCommandPath(commandPath, node.path)) {
     logger.trace(
@@ -139,6 +171,32 @@ const processStackGroupConfigNode = async (
 
   const currentStackGroup = status.getStackGroup(node.path)
 
+  const modulesToProcess = currentStackGroup.ignore
+    ? []
+    : node.modules
+        .filter((item) => isWithinCommandPath(commandPath, item.path))
+        .filter((item) => !status.isModuleProcessed(item.path))
+
+  const processedModules = await Promise.all(
+    modulesToProcess.map((moduleConfigNode) =>
+      buildModule({
+        ctx,
+        logger,
+        credentialManagers,
+        moduleConfigNode,
+        configRepository,
+        hookRegistry,
+        resolverRegistry,
+        schemaRegistry,
+        parentModuleInformation: moduleInformation,
+        stackGroup: currentStackGroup,
+        defaultCredentialManager: credentialManager,
+      }),
+    ),
+  )
+
+  processedModules.forEach(status.setModuleProcessed)
+
   const stacksToProcess = currentStackGroup.ignore
     ? []
     : node.stacks
@@ -159,6 +217,7 @@ const processStackGroupConfigNode = async (
         status.getStackGroup(node.path),
         commandPath,
         status,
+        moduleInformation,
       ),
     ),
   )
@@ -170,7 +229,7 @@ const processStackGroupConfigNode = async (
 
   await Promise.all(
     childrenToProcess.map((child) =>
-      processStackGroupConfigNode(
+      processStackGroupConfigNode({
         ctx,
         logger,
         credentialManager,
@@ -180,23 +239,41 @@ const processStackGroupConfigNode = async (
         hookRegistry,
         commandPath,
         status,
-        child,
-      ),
+        node: child,
+        configRepository,
+        moduleInformation,
+      }),
     ),
   )
 }
 
-export const processConfigTree = async (
-  ctx: CommandContext,
-  logger: TkmLogger,
-  credentialManager: CredentialManager,
-  credentialManagers: Map<IamRoleArn, CredentialManager>,
-  resolverRegistry: ResolverRegistry,
-  schemaRegistry: SchemaRegistry,
-  hookRegistry: HookRegistry,
-  commandPath: CommandPath,
-  configTree: ConfigTree,
-): Promise<StackGroup> => {
+interface ProcessConfigTreeProps {
+  readonly ctx: InternalCommandContext
+  readonly logger: TkmLogger
+  readonly credentialManager: CredentialManager
+  readonly credentialManagers: Map<IamRoleArn, CredentialManager>
+  readonly resolverRegistry: ResolverRegistry
+  readonly schemaRegistry: SchemaRegistry
+  readonly hookRegistry: HookRegistry
+  readonly commandPath: CommandPath
+  readonly configTree: ConfigTree
+  readonly configRepository: StacksConfigRepository
+  readonly moduleInformation: ModuleInformation
+}
+
+export const processConfigTree = async ({
+  ctx,
+  logger,
+  credentialManager,
+  credentialManagers,
+  resolverRegistry,
+  schemaRegistry,
+  hookRegistry,
+  commandPath,
+  configTree,
+  configRepository,
+  moduleInformation,
+}: ProcessConfigTreeProps): Promise<StackGroup> => {
   const item = configTree.rootStackGroup
   const status = new ProcessStatus()
 
@@ -205,7 +282,7 @@ export const processConfigTree = async (
     logger.traceObject("Command paths to process:", () => commandPaths)
     for (const cp of commandPaths) {
       logger.trace(`Process config tree using command path: ${cp}`)
-      await processStackGroupConfigNode(
+      await processStackGroupConfigNode({
         ctx,
         logger,
         credentialManager,
@@ -213,10 +290,12 @@ export const processConfigTree = async (
         resolverRegistry,
         schemaRegistry,
         hookRegistry,
-        cp,
+        commandPath: cp,
         status,
-        item,
-      )
+        node: item,
+        configRepository,
+        moduleInformation,
+      })
     }
 
     commandPaths = R.uniq(
@@ -243,9 +322,10 @@ export const processConfigTree = async (
   const allStackGroups = status.getStackGroups()
   const root = status.getRootStackGroup()
   const stacksByPath = arrayToMap(allStacks, (s) => s.path)
+  const allModules = status.getModules()
 
   checkCyclicDependencies(stacksByPath)
   checkObsoleteDependencies(stacksByPath)
 
-  return populateChildrenAndStacks(root, allStacks, allStackGroups)
+  return populateChildrenAndStacks(root, allStacks, allStackGroups, allModules)
 }

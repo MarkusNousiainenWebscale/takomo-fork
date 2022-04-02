@@ -52,7 +52,7 @@ export const createVariablesForStackTemplate = (
 export const prepareTemplate: StackOperationStep<TagsHolder> = async (
   state,
 ) => {
-  const { stack, variables, transitions, configRepository, parameters } = state
+  const { stack, variables, transitions, parameters, ctx } = state
 
   const stackVariables = createVariablesForStackTemplate(
     variables,
@@ -60,7 +60,7 @@ export const prepareTemplate: StackOperationStep<TagsHolder> = async (
     parameters,
   )
 
-  const templateBody = await configRepository.getStackTemplateContents({
+  const templateBody = await ctx.getStackTemplateContents({
     ...stack.template,
     variables: stackVariables,
   })

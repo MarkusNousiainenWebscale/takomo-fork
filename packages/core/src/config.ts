@@ -61,14 +61,22 @@ export interface ExternalHandlebarsHelperConfig {
 /**
  * @hidden
  */
-export interface InternalTakomoProjectConfig extends TakomoProjectConfig {
-  readonly resolvers: ReadonlyArray<ExternalResolverConfig>
-  readonly helpers: ReadonlyArray<ExternalHandlebarsHelperConfig>
-  readonly features: Features
-  readonly varFiles: ReadonlyArray<FilePath>
+export interface AdditionalConfigurationLocations {
   readonly helpersDir: ReadonlyArray<FilePath>
   readonly partialsDir: ReadonlyArray<FilePath>
   readonly schemasDir: ReadonlyArray<FilePath>
+  readonly helpers: ReadonlyArray<ExternalHandlebarsHelperConfig>
+  readonly resolvers: ReadonlyArray<ExternalResolverConfig>
+}
+
+/**
+ * @hidden
+ */
+export interface InternalTakomoProjectConfig
+  extends TakomoProjectConfig,
+    AdditionalConfigurationLocations {
+  readonly features: Features
+  readonly varFiles: ReadonlyArray<FilePath>
 }
 
 /**

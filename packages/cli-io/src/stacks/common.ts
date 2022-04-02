@@ -6,6 +6,7 @@ import {
 } from "@takomo/stacks-commands"
 import {
   CommandPath,
+  getModulePath,
   getStackPath,
   StackGroup,
   StackPath,
@@ -30,14 +31,17 @@ export const chooseCommandPathInternal = async (
 ): Promise<CommandPath> => {
   const allStackGroups = collectFromHierarchy(rootStackGroup, (s) => s.children)
 
-  const allCommandPaths = allStackGroups.reduce(
-    (collected, stackGroup) => [
-      ...collected,
-      stackGroup.path,
-      ...stackGroup.stacks.map(getStackPath),
-    ],
-    new Array<string>(),
-  )
+  const allCommandPaths = allStackGroups
+    .reduce(
+      (collected, stackGroup) => [
+        ...collected,
+        stackGroup.path,
+        ...stackGroup.stacks.map(getStackPath),
+        ...stackGroup.modules.map(getModulePath),
+      ],
+      new Array<string>(),
+    )
+    .sort()
 
   const source = async (answersSoFar: any, input: string): Promise<string[]> =>
     input ? allCommandPaths.filter((p) => p.includes(input)) : allCommandPaths

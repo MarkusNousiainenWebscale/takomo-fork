@@ -1,6 +1,7 @@
 import { StackName } from "@takomo/aws-model"
 import R from "ramda"
 import { CommandPath } from "./command"
+import { InternalModule, ModulePath } from "./module"
 import { InternalStack, Stack, StackPath } from "./stack"
 
 /**
@@ -45,3 +46,8 @@ export const isWithinCommandPath = (
   commandPath: CommandPath,
   other: CommandPath,
 ): boolean => commandPath.startsWith(other.substr(0, commandPath.length))
+
+/**
+ * @hidden
+ */
+export const getModulePath = ({ path }: InternalModule): ModulePath => path

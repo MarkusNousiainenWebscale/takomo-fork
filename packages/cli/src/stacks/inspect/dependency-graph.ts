@@ -30,8 +30,10 @@ const handler = (argv: Arguments<CommandArgs>) =>
     }),
     configRepository: (ctx, logger) =>
       createFileSystemStacksConfigRepository({
-        ctx,
         logger,
+        additionalConfiguration: ctx.projectConfig,
+        regions: ctx.regions,
+        confidentialValuesLoggingEnabled: ctx.confidentialValuesLoggingEnabled,
         ...ctx.filePaths,
       }),
     executor: dependencyGraphCommand,

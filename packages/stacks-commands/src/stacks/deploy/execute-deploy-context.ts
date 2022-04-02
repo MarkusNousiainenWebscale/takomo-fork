@@ -1,6 +1,6 @@
 import { OutputFormat, resolveCommandOutputBase } from "@takomo/core"
-import { StacksConfigRepository } from "@takomo/stacks-context"
 import {
+  CommandPath,
   InternalStacksContext,
   StackPath,
   StackResult,
@@ -27,19 +27,19 @@ const confirmDeploy = async (
 }
 
 const executeStacksInParallel = async (
-  ctx: InternalStacksContext,
+  ctxMap: Map<CommandPath, InternalStacksContext>,
   io: DeployStacksIO,
   state: DeployState,
   timer: Timer,
   operations: ReadonlyArray<StackDeployOperation>,
   ignoreDependencies: boolean,
   map: Map<StackPath, Promise<StackResult>>,
-  configRepository: StacksConfigRepository,
   outputFormat: OutputFormat,
   stacksOperationListener: StacksOperationListener,
   expectNoChanges: boolean,
+  concurrentStacks: number,
 ): Promise<StacksOperationOutput> => {
-  const bulkhead = Policy.bulkhead(ctx.concurrentStacks, 1000)
+  const bulkhead = Policy.bulkhead(concurrentStacks, 1000)
 
   const executions = operations.reduce((executions, operation) => {
     const { stack, type, currentStack } = operation
@@ -56,6 +56,11 @@ const executeStacksInParallel = async (
           return dependency
         })
 
+    const ctx = ctxMap.get(stack.moduleInformation.path)
+    if (!ctx) {
+      throw new Error(`Expected stacks context with path '${ctx}' to exists`)
+    }
+
     const execution = bulkhead.execute(() =>
       deployStack(
         timer,
@@ -65,7 +70,6 @@ const executeStacksInParallel = async (
         stack,
         dependencies,
         type,
-        configRepository,
         stacksOperationListener,
         expectNoChanges,
         currentStack,
@@ -87,11 +91,12 @@ const executeStacksInParallel = async (
 }
 
 export const executeDeployContext = async (
-  ctx: InternalStacksContext,
+  ctxMap: Map<CommandPath, InternalStacksContext>,
   input: StacksDeployOperationInput,
   io: DeployStacksIO,
   plan: StacksDeployPlan,
-  configRepository: StacksConfigRepository,
+  autoConfirm: boolean,
+  concurrentStacks: number,
 ): Promise<StacksOperationOutput> => {
   const { ignoreDependencies, expectNoChanges, timer } = input
   const { operations } = plan
@@ -106,7 +111,6 @@ export const executeDeployContext = async (
     )
   }
 
-  const autoConfirm = ctx.autoConfirmEnabled
   const state = { cancelled: false, autoConfirm }
   const confirmAnswer = await confirmDeploy(autoConfirm, plan, io)
 
@@ -132,17 +136,17 @@ export const executeDeployContext = async (
 
   if (state.autoConfirm) {
     return executeStacksInParallel(
-      ctx,
+      ctxMap,
       io,
       state,
       timer,
       operations,
       ignoreDependencies,
       new Map(),
-      configRepository,
       input.outputFormat,
       deployStacksListener,
       expectNoChanges,
+      concurrentStacks,
     )
   }
 
@@ -170,6 +174,11 @@ export const executeDeployContext = async (
       continue
     }
 
+    const ctx = ctxMap.get(stack.moduleInformation.path)
+    if (!ctx) {
+      throw new Error(`Expected stacks context with path '${ctx}' to exists`)
+    }
+
     const execution = await deployStack(
       timer,
       ctx,
@@ -178,7 +187,6 @@ export const executeDeployContext = async (
       stack,
       dependencies,
       operation.type,
-      configRepository,
       deployStacksListener,
       expectNoChanges,
       operation.currentStack,
@@ -199,17 +207,17 @@ export const executeDeployContext = async (
       )
 
       return executeStacksInParallel(
-        ctx,
+        ctxMap,
         io,
         state,
         timer,
         operations.slice(i + 1),
         ignoreDependencies,
         promisedExecutions,
-        configRepository,
         input.outputFormat,
         deployStacksListener,
         expectNoChanges,
+        concurrentStacks,
       )
     }
   }

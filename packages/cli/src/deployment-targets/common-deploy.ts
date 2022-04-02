@@ -148,6 +148,10 @@ const createTargetsDeployHandler =
         createFileSystemDeploymentTargetsConfigRepository({
           ctx,
           logger,
+          additionalConfiguration: ctx.projectConfig,
+          regions: ctx.regions,
+          confidentialValuesLoggingEnabled:
+            ctx.confidentialValuesLoggingEnabled,
           pathToDeploymentConfigFile: argv[CONFIG_FILE_OPT],
           ...ctx.filePaths,
         }),

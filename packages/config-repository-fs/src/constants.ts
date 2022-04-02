@@ -2,6 +2,7 @@ import { FilePath } from "@takomo/util"
 import path from "path"
 
 export const CONFIG_FILE_EXTENSION = ".yml"
+export const MODULE_CONFIG_FILE_EXTENSION = ".module.yml"
 export const TEMPLATES_DIR = "templates"
 export const STACKS_DIR = "stacks"
 export const PARTIALS_DIR = "partials"
@@ -9,13 +10,13 @@ export const HELPERS_DIR = "helpers"
 export const SCHEMAS_DIR = "schemas"
 export const HOOKS_DIR = "hooks"
 export const RESOLVERS_DIR = "resolvers"
-export const ORGANIZATION_DIR = "organization"
 export const DEPLOYMENT_DIR = "deployment"
 export const CONFIG_SETS_DIR = "config-sets"
+export const MODULES_DIR = "modules"
 export const DEFAULT_DEPLOYMENT_CONFIG_FILE = "targets.yml"
-export const DEFAULT_ORGANIZATION_CONFIG_FILE = "organization.yml"
 export const STACK_GROUP_CONFIG_FILE_NAME = "config.yml"
 export const TAKOMO_PROJECT_CONFIG_FILE_NAME = "takomo.yml"
+export const TAKOMO_MODULE_CONFIG_FILE_NAME = "takomo-module.yml"
 
 export interface ProjectFilePaths {
   readonly projectDir: FilePath
@@ -30,15 +31,12 @@ export interface ProjectFilePaths {
   readonly stackGroupConfigFileName: string
   readonly projectConfigFileName: string
   readonly configFileExtension: string
+  readonly moduleConfigFileExtension: string
   readonly defaultDeploymentConfigFileName: string
   readonly deploymentDir: FilePath
+  readonly modulesDir: FilePath
   readonly configSetsDir: FilePath
-  readonly organizationDir: FilePath
-  readonly organizationTagPoliciesDir: FilePath
-  readonly organizationBackupPoliciesDir: FilePath
-  readonly organizationServiceControlPoliciesDir: FilePath
-  readonly organizationAiServicesOptOutPoliciesDir: FilePath
-  readonly defaultOrganizationConfigFileName: string
+  readonly moduleConfigFileName: string
 }
 
 export const createProjectFilePaths = (
@@ -56,29 +54,10 @@ export const createProjectFilePaths = (
   projectConfigFileName: TAKOMO_PROJECT_CONFIG_FILE_NAME,
   stackGroupConfigFileName: STACK_GROUP_CONFIG_FILE_NAME,
   configFileExtension: CONFIG_FILE_EXTENSION,
+  moduleConfigFileExtension: MODULE_CONFIG_FILE_EXTENSION,
   defaultDeploymentConfigFileName: DEFAULT_DEPLOYMENT_CONFIG_FILE,
   deploymentDir: path.join(projectDir, DEPLOYMENT_DIR),
   configSetsDir: path.join(projectDir, CONFIG_SETS_DIR),
-  organizationDir: path.join(projectDir, ORGANIZATION_DIR),
-  organizationTagPoliciesDir: path.join(
-    projectDir,
-    ORGANIZATION_DIR,
-    "tag-policies",
-  ),
-  organizationBackupPoliciesDir: path.join(
-    projectDir,
-    ORGANIZATION_DIR,
-    "backup-policies",
-  ),
-  organizationServiceControlPoliciesDir: path.join(
-    projectDir,
-    ORGANIZATION_DIR,
-    "service-control-policies",
-  ),
-  organizationAiServicesOptOutPoliciesDir: path.join(
-    projectDir,
-    ORGANIZATION_DIR,
-    "ai-services-opt-out-policies",
-  ),
-  defaultOrganizationConfigFileName: DEFAULT_ORGANIZATION_CONFIG_FILE,
+  modulesDir: path.join(projectDir, MODULES_DIR),
+  moduleConfigFileName: TAKOMO_MODULE_CONFIG_FILE_NAME,
 })

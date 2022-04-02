@@ -85,61 +85,62 @@ const hasStackPolicyChanged = (
   return currentStack?.stackPolicyBody !== stack.stackPolicy
 }
 
-export const waitChangeSetToBeReady: StackOperationStep<ChangeSetNameHolder> =
-  async (state) => {
-    const {
-      stack,
-      changeSetName,
-      logger,
-      currentStack,
-      templateSummary,
-      transitions,
-      expectNoChanges,
-    } = state
-    const changeSet = await stack
-      .getCloudFormationClient()
-      .waitUntilChangeSetIsReady(stack.name, changeSetName)
+export const waitChangeSetToBeReady: StackOperationStep<
+  ChangeSetNameHolder
+> = async (state) => {
+  const {
+    stack,
+    changeSetName,
+    logger,
+    currentStack,
+    templateSummary,
+    transitions,
+    expectNoChanges,
+  } = state
+  const changeSet = await stack
+    .getCloudFormationClient()
+    .waitUntilChangeSetIsReady(stack.name, changeSetName)
 
-    const terminationProtectionChanged = currentStack
-      ? currentStack.enableTerminationProtection !== stack.terminationProtection
-      : false
+  const terminationProtectionChanged = currentStack
+    ? currentStack.enableTerminationProtection !== stack.terminationProtection
+    : false
 
-    const stackPolicyChanged = hasStackPolicyChanged(stack, currentStack)
+  const stackPolicyChanged = hasStackPolicyChanged(stack, currentStack)
 
-    if (
-      changeSet === undefined &&
-      !terminationProtectionChanged &&
-      !stackPolicyChanged
-    ) {
-      logger.info("Change set contains no changes")
-      return transitions.executeAfterDeployHooks({
-        ...state,
-        message: "No changes",
-        status: "SUCCESS",
-        events: [],
-        success: true,
-      })
-    }
-
-    if (expectNoChanges) {
-      return transitions.failStackOperation({
-        ...state,
-        message: "Stack has unexpected changes",
-        events: [],
-        error: new UnexpectedChangesInStackError(
-          changeSet,
-          terminationProtectionChanged,
-          stackPolicyChanged,
-        ),
-      })
-    }
-
-    const detailedChangeSet = changeSet
-      ? enrichChangeSet(changeSet, templateSummary)
-      : undefined
-
-    return transitions.reviewChangeSet({
+  if (
+    changeSet === undefined &&
+    !terminationProtectionChanged &&
+    !stackPolicyChanged
+  ) {
+    logger.info("Change set contains no changes")
+    return transitions.executeAfterDeployHooks({
       ...state,
-      changeSet: detailedChangeSet,
+      message: "No changes",
+      status: "SUCCESS",
+      events: [],
+      success: true,
     })
   }
+
+  if (expectNoChanges) {
+    return transitions.failStackOperation({
+      ...state,
+      message: "Stack has unexpected changes",
+      events: [],
+      error: new UnexpectedChangesInStackError(
+        changeSet,
+        terminationProtectionChanged,
+        stackPolicyChanged,
+      ),
+    })
+  }
+
+  const detailedChangeSet = changeSet
+    ? enrichChangeSet(changeSet, templateSummary)
+    : undefined
+
+  return transitions.reviewChangeSet({
+    ...state,
+    changeSet: detailedChangeSet,
+  })
+}

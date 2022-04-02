@@ -8,6 +8,8 @@ import { createStacksSchemas } from "@takomo/stacks-schema"
 import { validateInput } from "@takomo/util"
 import Joi, { AnySchema } from "joi"
 import { StacksDeployOperationInput, StacksOperationOutput } from "../../model"
+import { collectStacksContexts } from "../common/collect-stacks-contexts"
+import { collectStacksRecursively } from "../list/list-stacks"
 import { executeDeployContext } from "./execute-deploy-context"
 import { DeployStacksIO } from "./model"
 import { buildStacksDeployPlan } from "./plan"
@@ -31,14 +33,13 @@ const modifyInput = async (
 
 const deployStacks = async (
   ctx: InternalStacksContext,
-  configRepository: StacksConfigRepository,
   io: DeployStacksIO,
   input: StacksDeployOperationInput,
 ): Promise<StacksOperationOutput> => {
   const modifiedInput = await modifyInput(input, ctx, io)
 
   const plan = await buildStacksDeployPlan(
-    ctx.stacks,
+    collectStacksRecursively(ctx),
     modifiedInput.commandPath,
     modifiedInput.ignoreDependencies,
     io,
@@ -46,7 +47,16 @@ const deployStacks = async (
 
   await validateStacksDeployPlan(plan)
 
-  return executeDeployContext(ctx, modifiedInput, io, plan, configRepository)
+  const ctxMap = collectStacksContexts(ctx)
+
+  return executeDeployContext(
+    ctxMap,
+    modifiedInput,
+    io,
+    plan,
+    ctx.autoConfirmEnabled,
+    ctx.concurrentStacks,
+  )
 }
 
 const inputSchema = (ctx: CommandContext): AnySchema => {
@@ -78,5 +88,5 @@ export const deployStacksCommand: CommandHandler<
         credentialManager,
       }),
     )
-    .then((ctx) => deployStacks(ctx, configRepository, io, input))
+    .then((ctx) => deployStacks(ctx, io, input))
     .then(io.printOutput)

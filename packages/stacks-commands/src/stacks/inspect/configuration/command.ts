@@ -17,6 +17,7 @@ import { arrayToMap, validateInput } from "@takomo/util"
 import Joi, { AnySchema } from "joi"
 import R from "ramda"
 import { collectStackDependencies } from "../../deploy/plan"
+import { collectStacksRecursively } from "../../list/list-stacks"
 import {
   ShowConfigurationInput,
   ShowConfigurationIO,
@@ -28,7 +29,7 @@ const modifyStacks = async (
   ctx: InternalStacksContext,
   io: ShowConfigurationIO,
 ): Promise<ReadonlyArray<InternalStack>> => {
-  const stacks = ctx.stacks
+  const stacks = collectStacksRecursively(ctx)
 
   if (!input.interactive) {
     return stacks

@@ -1,4 +1,10 @@
-import { InternalCommandContext } from "@takomo/core"
+import { Region } from "@takomo/aws-model"
+import { AdditionalConfigurationLocations } from "@takomo/core"
+import {
+  createModuleConfigSchema,
+  createStackConfigSchema,
+  createStackGroupConfigSchema,
+} from "@takomo/stacks-config"
 import {
   ConfigTree,
   StacksConfigRepository,
@@ -7,9 +13,11 @@ import {
 import { HookRegistry } from "@takomo/stacks-hooks"
 import { ROOT_STACK_GROUP_PATH, SchemaRegistry } from "@takomo/stacks-model"
 import { ResolverRegistry } from "@takomo/stacks-resolvers"
+import { createStacksSchemas } from "@takomo/stacks-schema"
 import {
   createTemplateEngine,
   dirExists,
+  fileExists,
   FilePath,
   readFileContents,
   renderTemplate,
@@ -17,6 +25,10 @@ import {
   TkmLogger,
 } from "@takomo/util"
 import path from "path"
+import {
+  createProjectFilePaths,
+  TAKOMO_MODULE_CONFIG_FILE_NAME,
+} from "../constants"
 import { loadTemplateHelpers, loadTemplatePartials } from "../template-engine"
 import { buildStackGroupConfigNode } from "./config-tree"
 import {
@@ -26,7 +38,6 @@ import {
 } from "./extensions"
 
 export interface FileSystemStacksConfigRepositoryProps {
-  readonly ctx: InternalCommandContext
   readonly logger: TkmLogger
   readonly projectDir: FilePath
   readonly stacksDir: FilePath
@@ -36,12 +47,32 @@ export interface FileSystemStacksConfigRepositoryProps {
   readonly partialsDir: FilePath
   readonly templatesDir: FilePath
   readonly schemasDir: FilePath
+  readonly modulesDir: FilePath
   readonly configFileExtension: string
+  readonly moduleConfigFileExtension: string
   readonly stackGroupConfigFileName: string
+  readonly regions: ReadonlyArray<Region>
+  readonly confidentialValuesLoggingEnabled: boolean
+  readonly additionalConfiguration: AdditionalConfigurationLocations
 }
 
-export const createFileSystemStacksConfigRepository = async ({
-  ctx,
+export interface ChildFileSystemStacksConfigRepositoryProps
+  extends FileSystemStacksConfigRepositoryProps {
+  readonly isRoot: boolean
+}
+
+export const createFileSystemStacksConfigRepository = async (
+  props: FileSystemStacksConfigRepositoryProps,
+): Promise<StacksConfigRepository> => {
+  return createChildFileSystemStacksConfigRepository({
+    ...props,
+    isRoot: true,
+  })
+}
+
+export const createChildFileSystemStacksConfigRepository = async ({
+  regions,
+  additionalConfiguration,
   logger,
   stacksDir,
   resolversDir,
@@ -49,13 +80,17 @@ export const createFileSystemStacksConfigRepository = async ({
   hooksDir,
   partialsDir,
   configFileExtension,
+  moduleConfigFileExtension,
   stackGroupConfigFileName,
   templatesDir,
   schemasDir,
-}: FileSystemStacksConfigRepositoryProps): Promise<StacksConfigRepository> => {
+  modulesDir,
+  confidentialValuesLoggingEnabled,
+  isRoot,
+}: ChildFileSystemStacksConfigRepositoryProps): Promise<StacksConfigRepository> => {
   const templateEngine = createTemplateEngine()
 
-  ctx.projectConfig.helpers.forEach((config) => {
+  additionalConfiguration.helpers.forEach((config) => {
     logger.debug(
       `Register Handlebars helper from NPM package: ${config.package}`,
     )
@@ -81,21 +116,21 @@ export const createFileSystemStacksConfigRepository = async ({
   })
 
   const defaultHelpersDirExists = await dirExists(helpersDir)
-  const additionalHelpersDirs = ctx.projectConfig.helpersDir
+  const additionalHelpersDirs = additionalConfiguration.helpersDir
 
   const helpersDirs = defaultHelpersDirExists
     ? [helpersDir, ...additionalHelpersDirs]
     : additionalHelpersDirs
 
   const defaultPartialsDirExists = await dirExists(partialsDir)
-  const additionalPartialsDirs = ctx.projectConfig.partialsDir
+  const additionalPartialsDirs = additionalConfiguration.partialsDir
 
   const partialsDirs = defaultPartialsDirExists
     ? [partialsDir, ...additionalPartialsDirs]
     : additionalPartialsDirs
 
   const defaultSchemasDirExists = await dirExists(schemasDir)
-  const additionalSchemasDirs = ctx.projectConfig.schemasDir
+  const additionalSchemasDirs = additionalConfiguration.schemasDir
 
   const schemasDirs = defaultSchemasDirExists
     ? [schemasDir, ...additionalSchemasDirs]
@@ -155,17 +190,33 @@ export const createFileSystemStacksConfigRepository = async ({
     return renderedContent
   }
 
+  const schemaProps = {
+    regions,
+    requireStackName: !isRoot,
+    denyProject: !isRoot,
+  }
+
+  const stacksSchemas = createStacksSchemas(schemaProps)
+  const stackConfigSchema = createStackConfigSchema(schemaProps)
+  const stackGroupConfigSchema = createStackGroupConfigSchema(schemaProps)
+  const moduleConfigSchema = createModuleConfigSchema(schemaProps)
+
   return {
     buildConfigTree: async (): Promise<ConfigTree> =>
-      buildStackGroupConfigNode(
-        ctx,
+      buildStackGroupConfigNode({
         templateEngine,
         logger,
         configFileExtension,
         stackGroupConfigFileName,
-        stacksDir,
-        ROOT_STACK_GROUP_PATH,
-      ).then((rootStackGroup) => ({
+        moduleConfigFileExtension,
+        stacksSchemas,
+        stackConfigSchema,
+        moduleConfigSchema,
+        stackGroupConfigSchema,
+        confidentialValuesLoggingEnabled,
+        stackGroupDir: stacksDir,
+        stackGroupPath: ROOT_STACK_GROUP_PATH,
+      }).then((rootStackGroup) => ({
         rootStackGroup,
       })),
 
@@ -195,6 +246,33 @@ export const createFileSystemStacksConfigRepository = async ({
       }
 
       throw new Error("Expected either filename or inline to be defined")
+    },
+
+    getStacksConfigRepositoryForModule: async (
+      moduleId,
+      moduleVersion,
+    ): Promise<StacksConfigRepository> => {
+      const pathToModuleDir = path.join(modulesDir, moduleId, moduleVersion)
+
+      const pathToModuleConfigFile = path.join(
+        pathToModuleDir,
+        TAKOMO_MODULE_CONFIG_FILE_NAME,
+      )
+
+      if (!(await fileExists(pathToModuleConfigFile))) {
+        throw new Error(
+          `Module ${moduleId}@${moduleVersion} not found from dir ${modulesDir}`,
+        )
+      }
+
+      return createChildFileSystemStacksConfigRepository({
+        additionalConfiguration,
+        logger,
+        regions,
+        confidentialValuesLoggingEnabled,
+        ...createProjectFilePaths(pathToModuleDir),
+        isRoot: false,
+      })
     },
 
     templateEngine,

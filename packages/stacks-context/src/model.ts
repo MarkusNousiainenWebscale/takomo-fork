@@ -5,6 +5,8 @@ import { HookRegistry } from "@takomo/stacks-hooks"
 import {
   CommandPath,
   InternalStack,
+  ModuleId,
+  ModuleVersion,
   Resolver,
   ResolverInput,
   ResolverName,
@@ -197,17 +199,22 @@ export interface StacksConfigRepositoryProps {
 }
 
 export interface StacksConfigRepository {
-  getStackTemplateContents: (
+  readonly getStackTemplateContents: (
     props: StacksConfigRepositoryProps,
   ) => Promise<string>
 
-  buildConfigTree: () => Promise<ConfigTree>
+  readonly buildConfigTree: () => Promise<ConfigTree>
 
-  loadExtensions: (
+  readonly loadExtensions: (
     resolverRegistry: ResolverRegistry,
     hookRegistry: HookRegistry,
     schemaRegistry: SchemaRegistry,
   ) => Promise<void>
 
-  templateEngine: TemplateEngine
+  readonly templateEngine: TemplateEngine
+
+  readonly getStacksConfigRepositoryForModule: (
+    moduleId: ModuleId,
+    moduleVersion: ModuleVersion,
+  ) => Promise<StacksConfigRepository>
 }

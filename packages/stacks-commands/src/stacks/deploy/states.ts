@@ -9,7 +9,6 @@ import {
   TemplateSummary,
 } from "@takomo/aws-model"
 import { CommandStatus } from "@takomo/core"
-import { StacksConfigRepository } from "@takomo/stacks-context"
 import {
   InternalStacksContext,
   StackOperationType,
@@ -29,7 +28,6 @@ import { DeployStackTransitions } from "./transitions"
 export interface InitialDeployStackState extends InitialStackOperationState {
   readonly io: DeployStacksIO
   readonly ctx: InternalStacksContext
-  readonly configRepository: StacksConfigRepository
   readonly variables: StackOperationVariables
   readonly logger: TkmLogger
   readonly currentStack?: CloudFormationStackSummary

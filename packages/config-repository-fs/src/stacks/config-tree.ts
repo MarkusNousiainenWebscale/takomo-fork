@@ -1,27 +1,56 @@
-import { CommandContext } from "@takomo/core"
-import { StackGroupConfigNode } from "@takomo/stacks-context"
+import {
+  ModuleConfigNode,
+  StackConfigNode,
+  StackGroupConfigNode,
+} from "@takomo/stacks-context"
 import { ROOT_STACK_GROUP_PATH, StackGroupPath } from "@takomo/stacks-model"
-import { createStacksSchemas } from "@takomo/stacks-schema"
+import { StacksSchemas } from "@takomo/stacks-schema"
 import { FilePath, TemplateEngine, TkmLogger, validate } from "@takomo/util"
+import { ObjectSchema } from "joi"
 import path from "path"
 import readdirp from "readdirp"
-import { parseStackConfigFile, parseStackGroupConfigFile } from "./parser"
+import {
+  parseModuleConfigFile,
+  parseStackConfigFile,
+  parseStackGroupConfigFile,
+} from "./parser"
 
-export const buildStackGroupConfigNode = async (
-  ctx: CommandContext,
-  templateEngine: TemplateEngine,
-  logger: TkmLogger,
-  configFileExtension: string,
-  stackGroupConfigFileName: string,
-  stackGroupDir: FilePath,
-  stackGroupPath: StackGroupPath,
-  parentStackGroupPath?: StackGroupPath,
-): Promise<StackGroupConfigNode> => {
+interface BuildStackGroupConfigNodeProps {
+  readonly templateEngine: TemplateEngine
+  readonly logger: TkmLogger
+  readonly configFileExtension: string
+  readonly moduleConfigFileExtension: string
+  readonly stackGroupConfigFileName: string
+  readonly stackGroupDir: FilePath
+  readonly stackGroupPath: StackGroupPath
+  readonly stacksSchemas: StacksSchemas
+  readonly confidentialValuesLoggingEnabled: boolean
+  readonly moduleConfigSchema: ObjectSchema
+  readonly stackConfigSchema: ObjectSchema
+  readonly stackGroupConfigSchema: ObjectSchema
+  readonly parentStackGroupPath?: StackGroupPath
+}
+
+export const buildStackGroupConfigNode = async ({
+  templateEngine,
+  logger,
+  configFileExtension,
+  moduleConfigFileExtension,
+  stackGroupConfigFileName,
+  stackGroupDir,
+  stackGroupPath,
+  stacksSchemas,
+  parentStackGroupPath,
+  confidentialValuesLoggingEnabled,
+  moduleConfigSchema,
+  stackConfigSchema,
+  stackGroupConfigSchema,
+}: BuildStackGroupConfigNodeProps): Promise<StackGroupConfigNode> => {
   logger.debug(
     `Process stack group ${stackGroupPath} from dir: ${stackGroupDir}`,
   )
 
-  const { stackGroupName } = createStacksSchemas({ regions: ctx.regions })
+  const { stackGroupName } = stacksSchemas
 
   validate(
     stackGroupName,
@@ -36,27 +65,61 @@ export const buildStackGroupConfigNode = async (
   })
 
   const childStackGroupDirs = files.filter((f) => f.stats!.isDirectory())
-  const children = await Promise.all(
+  const children: ReadonlyArray<StackGroupConfigNode> = await Promise.all(
     childStackGroupDirs.map((d) => {
       const childPath =
         stackGroupPath === ROOT_STACK_GROUP_PATH
           ? `/${d.basename}`
           : `${stackGroupPath}/${d.basename}`
-      return buildStackGroupConfigNode(
-        ctx,
+
+      return buildStackGroupConfigNode({
         templateEngine,
         logger,
         configFileExtension,
+        moduleConfigFileExtension,
         stackGroupConfigFileName,
-        d.fullPath,
-        childPath,
-        stackGroupPath,
-      )
+        stacksSchemas,
+        moduleConfigSchema,
+        stackConfigSchema,
+        stackGroupConfigSchema,
+        confidentialValuesLoggingEnabled,
+        stackGroupDir: d.fullPath,
+        stackGroupPath: childPath,
+        parentStackGroupPath: stackGroupPath,
+      })
     }),
   )
 
-  const stacks = files
-    .filter((f) => f.stats!.isFile() && f.basename !== stackGroupConfigFileName)
+  const modules: ReadonlyArray<ModuleConfigNode> = files
+    .filter(
+      (f) =>
+        f.stats!.isFile() &&
+        f.basename !== stackGroupConfigFileName &&
+        f.basename.endsWith(moduleConfigFileExtension),
+    )
+    .map((f) => ({
+      path:
+        stackGroupPath === ROOT_STACK_GROUP_PATH
+          ? `/${f.basename}`
+          : `${stackGroupPath}/${f.basename}`,
+      getConfig: (variables: any) =>
+        parseModuleConfigFile(
+          variables,
+          templateEngine,
+          logger,
+          f.fullPath,
+          confidentialValuesLoggingEnabled,
+          moduleConfigSchema,
+        ),
+    }))
+
+  const stacks: ReadonlyArray<StackConfigNode> = files
+    .filter(
+      (f) =>
+        f.stats!.isFile() &&
+        f.basename !== stackGroupConfigFileName &&
+        !f.basename.endsWith(moduleConfigFileExtension),
+    )
     .map((f) => ({
       path:
         stackGroupPath === ROOT_STACK_GROUP_PATH
@@ -64,11 +127,12 @@ export const buildStackGroupConfigNode = async (
           : `${stackGroupPath}/${f.basename}`,
       getConfig: (variables: any) =>
         parseStackConfigFile(
-          ctx,
           variables,
           templateEngine,
           logger,
           f.fullPath,
+          confidentialValuesLoggingEnabled,
+          stackConfigSchema,
         ),
     }))
 
@@ -84,14 +148,16 @@ export const buildStackGroupConfigNode = async (
     parentPath: parentStackGroupPath,
     stacks,
     children,
+    modules,
     getConfig: async (variables: any) =>
       file
         ? parseStackGroupConfigFile(
-            ctx,
             variables,
             templateEngine,
             logger,
             file.fullPath,
+            confidentialValuesLoggingEnabled,
+            stackGroupConfigSchema,
           )
         : undefined,
   }

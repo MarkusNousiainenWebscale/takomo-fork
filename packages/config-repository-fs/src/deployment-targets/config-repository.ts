@@ -1,5 +1,5 @@
 import { ConfigSetName } from "@takomo/config-sets"
-import { CommandContext } from "@takomo/core"
+import { CommandContext, InternalCommandContext } from "@takomo/core"
 import {
   buildDeploymentConfig,
   DeploymentConfig,
@@ -36,6 +36,7 @@ import { parseConfigFile } from "./parser"
 
 interface FileSystemDeploymentTargetsConfigRepositoryProps
   extends FileSystemStacksConfigRepositoryProps {
+  readonly ctx: InternalCommandContext
   readonly pathToDeploymentConfigFile?: FilePath
   readonly deploymentDir: FilePath
   readonly configSetsDir: FilePath

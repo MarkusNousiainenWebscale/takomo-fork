@@ -156,10 +156,6 @@ export const createDeployStacksIO = (
       marginTop: true,
     })
 
-    const stacksMap = new Map(
-      operations.map((o) => o.stack).map((s) => [s.path, s]),
-    )
-
     const maxStackPathLength = R.apply(
       Math.max,
       operations.map((o) => o.stack.path.length),

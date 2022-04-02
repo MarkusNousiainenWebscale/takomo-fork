@@ -13,26 +13,29 @@ interface CreateStacksSchemasProps {
 }
 
 export interface StacksSchemas {
-  commandPath: StringSchema
-  stackGroupPath: StringSchema
-  stackPath: StringSchema
-  relativeStackPath: StringSchema
-  stackGroupName: StringSchema
-  terminationProtection: BooleanSchema
-  ignore: BooleanSchema
-  obsolete: BooleanSchema
-  inheritTags: BooleanSchema
-  template: (StringSchema | ObjectSchema)[]
-  parameters: ObjectSchema
-  hooks: ArraySchema
-  timeoutObject: ObjectSchema
-  timeoutInMinutes: NumberSchema
-  hookName: StringSchema
-  hookStage: StringSchema
-  hookResult: StringSchema
-  hookOperation: StringSchema
-  templateBucket: ObjectSchema
-  schemas: ObjectSchema
+  readonly commandPath: StringSchema
+  readonly stackGroupPath: StringSchema
+  readonly stackPath: StringSchema
+  readonly relativeStackPath: StringSchema
+  readonly stackGroupName: StringSchema
+  readonly terminationProtection: BooleanSchema
+  readonly ignore: BooleanSchema
+  readonly obsolete: BooleanSchema
+  readonly inheritTags: BooleanSchema
+  readonly template: (StringSchema | ObjectSchema)[]
+  readonly parameters: ObjectSchema
+  readonly hooks: ArraySchema
+  readonly timeoutObject: ObjectSchema
+  readonly timeoutInMinutes: NumberSchema
+  readonly hookName: StringSchema
+  readonly hookStage: StringSchema
+  readonly hookResult: StringSchema
+  readonly hookOperation: StringSchema
+  readonly templateBucket: ObjectSchema
+  readonly schemas: ObjectSchema
+  readonly moduleName: StringSchema
+  readonly moduleId: StringSchema
+  readonly moduleVersion: StringSchema
 }
 
 export const createStacksSchemas = (
@@ -297,6 +300,10 @@ export const createStacksSchemas = (
 
   const inheritTags = Joi.boolean()
 
+  const moduleName = awsSchema.stackName
+  const moduleVersion = Joi.string()
+  const moduleId = Joi.string()
+
   return {
     commandPath,
     stackGroupPath,
@@ -318,5 +325,8 @@ export const createStacksSchemas = (
     templateBucket,
     schemas,
     inheritTags,
+    moduleName,
+    moduleVersion,
+    moduleId,
   }
 }

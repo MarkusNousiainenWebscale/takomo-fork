@@ -1,6 +1,10 @@
 import { createStackConfigSchema } from "../src/schema"
 
-const schema = createStackConfigSchema({ regions: ["eu-west-1"] })
+const schema = createStackConfigSchema({
+  regions: ["eu-west-1"],
+  requireStackName: false,
+  denyProject: false,
+})
 
 describe("stack config file schema", () => {
   test("regions is the only required property", () => {

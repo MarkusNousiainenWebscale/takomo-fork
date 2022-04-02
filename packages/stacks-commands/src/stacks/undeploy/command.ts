@@ -11,6 +11,8 @@ import {
   StacksOperationOutput,
   StacksUndeployOperationInput,
 } from "../../model"
+import { collectStacksContexts } from "../common/collect-stacks-contexts"
+import { collectStacksRecursively } from "../list/list-stacks"
 import { executeUndeployContext } from "./execute-undeploy-context"
 import { UndeployStacksIO } from "./model"
 import { buildStacksUndeployPlan } from "./plan"
@@ -41,14 +43,24 @@ const undeployStacks = async (
   const modifiedInput = await modifyInput(input, ctx, io)
 
   const plan = await buildStacksUndeployPlan(
-    ctx.stacks,
+    collectStacksRecursively(ctx),
     modifiedInput.commandPath,
     modifiedInput.ignoreDependencies,
     modifiedInput.prune,
   )
 
   await validateStacksUndeployPlan(plan)
-  return executeUndeployContext(ctx, modifiedInput, io, plan)
+
+  const ctxMap = collectStacksContexts(ctx)
+
+  return executeUndeployContext(
+    ctxMap,
+    modifiedInput,
+    io,
+    plan,
+    ctx.autoConfirmEnabled,
+    ctx.concurrentStacks,
+  )
 }
 
 const inputSchema = (ctx: CommandContext): AnySchema => {

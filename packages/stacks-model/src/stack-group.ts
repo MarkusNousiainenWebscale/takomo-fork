@@ -9,6 +9,7 @@ import {
 import { CommandRole, Project, Vars } from "@takomo/core"
 import { TemplateBucketConfig, TimeoutConfig } from "./common"
 import { HookConfig } from "./hook"
+import { InternalModule } from "./module"
 import { Schemas } from "./schemas"
 import { InternalStack } from "./stack"
 
@@ -29,6 +30,7 @@ export interface StackGroupProps {
   templateBucket?: TemplateBucketConfig
   children: ReadonlyArray<StackGroup>
   stacks: ReadonlyArray<InternalStack>
+  modules: ReadonlyArray<InternalModule>
   timeout?: TimeoutConfig
   tags: Map<TagKey, TagValue>
   hooks: ReadonlyArray<HookConfig>
@@ -57,6 +59,7 @@ export interface StackGroup {
   readonly templateBucket?: TemplateBucketConfig
   readonly children: ReadonlyArray<StackGroup>
   readonly stacks: ReadonlyArray<InternalStack>
+  readonly modules: ReadonlyArray<InternalModule>
   readonly timeout?: TimeoutConfig
   readonly tags: Map<TagKey, TagValue>
   readonly hooks: ReadonlyArray<HookConfig>
@@ -90,6 +93,7 @@ export const createStackGroup = (props: StackGroupProps): StackGroup => {
     project,
     regions,
     stacks,
+    modules,
     tags,
     templateBucket,
     terminationProtection,
@@ -114,6 +118,7 @@ export const createStackGroup = (props: StackGroupProps): StackGroup => {
     project,
     regions,
     stacks,
+    modules,
     tags,
     templateBucket,
     terminationProtection,

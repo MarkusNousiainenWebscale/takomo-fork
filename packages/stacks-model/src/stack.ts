@@ -16,6 +16,7 @@ import { FilePath, TkmLogger } from "@takomo/util"
 import { TemplateBucketConfig, TimeoutConfig } from "./common"
 import { ROOT_STACK_GROUP_PATH } from "./constants"
 import { HookExecutor } from "./hook"
+import { ModuleInformation } from "./module"
 import { ResolverExecutor } from "./resolver"
 import { Schemas } from "./schemas"
 import { StackGroupName, StackGroupPath } from "./stack-group"
@@ -65,6 +66,7 @@ export interface StackProps {
   stackPolicy?: StackPolicyBody
   stackPolicyDuringUpdate?: StackPolicyBody
   schemas?: Schemas
+  moduleInformation: ModuleInformation
 }
 
 /**
@@ -144,6 +146,7 @@ export interface Stack {
  * @hidden
  */
 export interface InternalStack extends Stack {
+  readonly moduleInformation: ModuleInformation
   readonly template: Template
   readonly templateBucket?: TemplateBucketConfig
   readonly accountIds: ReadonlyArray<AccountId>
@@ -194,6 +197,7 @@ export const createStack = (props: StackProps): InternalStack => {
     stackPolicy,
     stackPolicyDuringUpdate,
     schemas,
+    moduleInformation,
   } = props
 
   const getCloudFormationClient = () => cloudFormationClient
@@ -230,6 +234,7 @@ export const createStack = (props: StackProps): InternalStack => {
     stackPolicy,
     stackPolicyDuringUpdate,
     schemas,
+    moduleInformation,
     toProps: () => props,
   }
 }

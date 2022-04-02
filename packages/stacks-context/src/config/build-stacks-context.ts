@@ -1,13 +1,19 @@
 import { CredentialManager } from "@takomo/aws-clients"
 import { IamRoleArn } from "@takomo/aws-model"
-import { InternalCommandContext } from "@takomo/core"
-import { createHookRegistry } from "@takomo/stacks-hooks"
+import {
+  AdditionalConfigurationLocations,
+  InternalCommandContext,
+} from "@takomo/core"
+import { createHookRegistry, HookRegistry } from "@takomo/stacks-hooks"
 import {
   CommandPath,
   createSchemaRegistry,
+  getStackPath,
   InternalStacksContext,
+  ModuleInformation,
   normalizeStackPath,
   ROOT_STACK_GROUP_PATH,
+  SchemaRegistry,
   StackGroupPath,
   StackPath,
 } from "@takomo/stacks-model"
@@ -21,6 +27,7 @@ import {
   CommandPathMatchesNoStacksError,
   StacksConfigRepository,
 } from "../model"
+import { collectModules } from "./collect-modules"
 import { collectStackGroups } from "./collect-stack-groups"
 import { collectStacks } from "./collect-stacks"
 import { ConfigTree } from "./config-tree"
@@ -34,6 +41,15 @@ export interface BuildConfigContextInput {
   readonly credentialManager: CredentialManager
   readonly commandPath?: CommandPath
   readonly ignoreDependencies?: boolean
+}
+
+interface BuildChildConfigContextInput extends BuildConfigContextInput {
+  readonly hookRegistry: HookRegistry
+  readonly resolverRegistry: ResolverRegistry
+  readonly schemaRegistry: SchemaRegistry
+  readonly credentialManagers: Map<IamRoleArn, CredentialManager>
+  readonly additionalConfiguration: AdditionalConfigurationLocations
+  readonly moduleInformation: ModuleInformation
 }
 
 export const validateCommandPath = (
@@ -66,18 +82,11 @@ export const validateCommandPath = (
   }
 }
 
-export const buildStacksContext = async ({
-  ctx,
-  logger,
-  credentialManager,
-  commandPath,
-  configRepository,
-}: BuildConfigContextInput): Promise<InternalStacksContext> => {
+export const buildStacksContext = async (
+  props: BuildConfigContextInput,
+): Promise<InternalStacksContext> => {
+  const { logger, ctx } = props
   logger.info("Load configuration")
-
-  const configTree = await configRepository.buildConfigTree()
-
-  validateCommandPath(configTree, commandPath)
 
   const hookRegistry = createHookRegistry({ logger })
   for (const p of coreHookProviders()) {
@@ -89,11 +98,47 @@ export const buildStacksContext = async ({
     resolverRegistry.registerBuiltInProvider(p),
   )
 
-  ctx.projectConfig.resolvers.forEach((config) => {
+  const schemaRegistry = createSchemaRegistry(logger)
+
+  const credentialManagers = new Map<IamRoleArn, CredentialManager>()
+
+  return buildChildStacksContext({
+    ...props,
+    hookRegistry,
+    resolverRegistry,
+    schemaRegistry,
+    credentialManagers,
+    additionalConfiguration: ctx.projectConfig,
+    moduleInformation: {
+      path: ROOT_STACK_GROUP_PATH,
+      name: "",
+      stackPathPrefix: "",
+      stackNamePrefix: "",
+      isRoot: true,
+    },
+  })
+}
+
+export const buildChildStacksContext = async ({
+  ctx,
+  logger,
+  credentialManager,
+  commandPath,
+  configRepository,
+  hookRegistry,
+  resolverRegistry,
+  schemaRegistry,
+  credentialManagers,
+  additionalConfiguration,
+  moduleInformation,
+}: BuildChildConfigContextInput): Promise<InternalStacksContext> => {
+  const configTree = await configRepository.buildConfigTree()
+
+  validateCommandPath(configTree, commandPath)
+
+  additionalConfiguration.resolvers.forEach((config) => {
     resolverRegistry.registerProviderFromNpmPackage(config)
   })
-
-  const schemaRegistry = createSchemaRegistry(logger)
 
   await configRepository.loadExtensions(
     resolverRegistry,
@@ -101,10 +146,9 @@ export const buildStacksContext = async ({
     schemaRegistry,
   )
 
-  const credentialManagers = new Map<IamRoleArn, CredentialManager>()
   const templateEngine = configRepository.templateEngine
 
-  const rootStackGroup = await processConfigTree(
+  const rootStackGroup = await processConfigTree({
     ctx,
     logger,
     credentialManager,
@@ -112,44 +156,69 @@ export const buildStacksContext = async ({
     resolverRegistry,
     schemaRegistry,
     hookRegistry,
-    commandPath ?? ROOT_STACK_GROUP_PATH,
     configTree,
-  )
+    configRepository,
+    commandPath: commandPath ?? ROOT_STACK_GROUP_PATH,
+    moduleInformation,
+  })
 
   const stackGroups = collectStackGroups(rootStackGroup)
   const stacks = collectStacks(stackGroups)
-  const stacksByPath = arrayToMap(stacks, (s) => s.path)
+  const stacksByPath = arrayToMap(stacks, getStackPath)
+  const modules = collectModules(stackGroups)
 
   await Promise.all(
     Array.from(credentialManagers.values()).map((cm) => cm.getCallerIdentity()),
   )
 
+  const getStackGroup = (stackGroupPath: StackGroupPath) =>
+    stackGroups.get(stackGroupPath)
+
+  const getStackByExactPath = (
+    path: StackPath,
+    stackGroupPath?: StackGroupPath,
+  ) => {
+    const normalizedPath = stackGroupPath
+      ? normalizeStackPath(stackGroupPath, path)
+      : path
+
+    const internalPath = moduleInformation.stackPathPrefix + normalizedPath
+
+    const stack = stacksByPath.get(internalPath)
+    if (!stack) {
+      throw new Error(`No stack found with path: ${path}`)
+    }
+
+    return stack
+  }
+
+  const getStacksByPath = (
+    path: StackPath,
+    stackGroupPath?: StackGroupPath,
+  ) => {
+    const normalizedPath = stackGroupPath
+      ? normalizeStackPath(stackGroupPath, path)
+      : path
+
+    const internalPath = moduleInformation.stackPathPrefix + normalizedPath
+
+    return stacks.filter((s) => s.path.startsWith(internalPath))
+  }
+
+  const getStackTemplateContents = configRepository.getStackTemplateContents
+
   return {
     ...ctx,
+    moduleInformation,
     credentialManager,
     templateEngine,
     rootStackGroup,
     stacks,
+    modules,
+    getStackGroup,
+    getStackByExactPath,
+    getStacksByPath,
+    getStackTemplateContents,
     concurrentStacks: 20,
-    getStackGroup: (stackGroupPath: StackGroupPath) =>
-      stackGroups.get(stackGroupPath),
-    getStackByExactPath: (path: StackPath, stackGroupPath?: StackGroupPath) => {
-      const normalizedPath = stackGroupPath
-        ? normalizeStackPath(stackGroupPath, path)
-        : path
-
-      const stack = stacksByPath.get(normalizedPath)
-      if (!stack) {
-        throw new Error(`No stack found with path: ${path}`)
-      }
-
-      return stack
-    },
-    getStacksByPath: (path: StackPath, stackGroupPath?: StackGroupPath) => {
-      const normalizedPath = stackGroupPath
-        ? normalizeStackPath(stackGroupPath, path)
-        : path
-      return stacks.filter((s) => s.path.startsWith(normalizedPath))
-    },
   }
 }

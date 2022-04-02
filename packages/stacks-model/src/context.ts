@@ -1,6 +1,7 @@
 import { CredentialManager } from "@takomo/aws-clients"
 import { CommandContext } from "@takomo/core"
 import { TemplateEngine } from "@takomo/util"
+import { InternalModule, ModuleInformation } from "./module"
 import { InternalStack, Stack, StackPath } from "./stack"
 import { StackGroup, StackGroupPath } from "./stack-group"
 
@@ -39,15 +40,24 @@ export interface StacksContext extends CommandContext {
   ) => ReadonlyArray<Stack>
 }
 
+interface GetStackTemplateContentsProps {
+  readonly variables: any
+  readonly filename?: string
+  readonly inline?: string
+  readonly dynamic: boolean
+}
+
 /**
  * @hidden
  */
 export interface InternalStacksContext extends CommandContext {
+  readonly moduleInformation: ModuleInformation
   readonly concurrentStacks: number
   readonly credentialManager: CredentialManager
   readonly templateEngine: TemplateEngine
   readonly rootStackGroup: StackGroup
   readonly stacks: ReadonlyArray<InternalStack>
+  readonly modules: ReadonlyArray<InternalModule>
   readonly getStackGroup: (
     stackGroupPath: StackGroupPath,
   ) => StackGroup | undefined
@@ -59,4 +69,7 @@ export interface InternalStacksContext extends CommandContext {
     path: StackPath,
     stackGroupPath?: StackGroupPath,
   ) => ReadonlyArray<InternalStack>
+  readonly getStackTemplateContents: (
+    props: GetStackTemplateContentsProps,
+  ) => Promise<string>
 }

@@ -1,13 +1,14 @@
 import { StackEvent } from "@takomo/aws-model"
 import { CommandStatus, Variables } from "@takomo/core"
 import { Timer } from "@takomo/util"
+import { ModulePath } from "./module"
 import { InternalStack, StackPath } from "./stack"
 import { StackGroupPath } from "./stack-group"
 
 /**
  * Command path.
  */
-export type CommandPath = StackGroupPath | StackPath
+export type CommandPath = StackGroupPath | StackPath | ModulePath
 
 /**
  * @hidden

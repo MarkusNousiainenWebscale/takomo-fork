@@ -18,6 +18,7 @@ export const createStackGroupFromParent = (
     parentPath: parent.path,
     children: [],
     stacks: [],
+    modules: [],
     data: deepCopy(parent.data),
     hooks: parent.hooks,
     capabilities: parent.capabilities,

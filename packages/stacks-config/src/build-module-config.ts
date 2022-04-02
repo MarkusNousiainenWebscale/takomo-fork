@@ -4,12 +4,12 @@ import {
   parseOptionalBoolean,
   parseOptionalString,
   parseOptionalStringArray,
-  parseStringArray,
 } from "@takomo/core"
+import { ModuleName, ModuleVersion } from "@takomo/stacks-model"
 import { ValidationError } from "@takomo/util"
 import { ObjectSchema } from "joi"
 import { err, ok, Result } from "neverthrow"
-import { StackGroupConfig } from "./model"
+import { ModuleConfig } from "./model"
 import { parseAccountIds } from "./parse-account-ids"
 import { parseData } from "./parse-data"
 import { parseHooks } from "./parse-hooks"
@@ -19,11 +19,11 @@ import { parseTags } from "./parse-tags"
 import { parseTemplateBucket } from "./parse-template-bucket"
 import { parseTimeout } from "./parse-timeout"
 
-export const buildStackGroupConfig = (
+export const buildModuleConfig = (
   record: Record<string, unknown>,
-  stackGroupConfigSchema: ObjectSchema,
-): Result<StackGroupConfig, ValidationError> => {
-  const { error } = stackGroupConfigSchema.validate(record, {
+  moduleConfigSchema: ObjectSchema,
+): Result<ModuleConfig, ValidationError> => {
+  const { error } = moduleConfigSchema.validate(record, {
     abortEarly: false,
     convert: false,
   })
@@ -31,10 +31,7 @@ export const buildStackGroupConfig = (
   if (error) {
     const details = error.details.map((d) => d.message)
     return err(
-      new ValidationError(
-        "Validation errors in stack group configuration",
-        details,
-      ),
+      new ValidationError("Validation errors in module configuration", details),
     )
   }
 
@@ -48,19 +45,21 @@ export const buildStackGroupConfig = (
   )
 
   return ok({
-    hooks,
-    data,
     stackPolicy,
     stackPolicyDuringUpdate,
     schemas,
     accountIds,
+    data,
+    hooks,
+    id: record.id as ModuleVersion,
+    version: record.version as ModuleVersion,
+    name: record.name as ModuleName,
     terminationProtection: parseOptionalBoolean(record.terminationProtection),
     ignore: parseOptionalBoolean(record.ignore),
     obsolete: parseOptionalBoolean(record.obsolete),
     capabilities: parseOptionalStringArray(record.capabilities),
-    project: parseOptionalString(record.project),
     commandRole: parseCommandRole(record.commandRole),
-    regions: parseStringArray(record.regions),
+    region: parseOptionalString(record.region),
     templateBucket: parseTemplateBucket(record.templateBucket),
     tags: parseTags(record.tags),
     inheritTags: parseBoolean(record.inheritTags, true),

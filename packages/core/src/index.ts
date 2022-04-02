@@ -23,6 +23,7 @@ export {
   TakomoBuildInfo,
 } from "./command"
 export {
+  AdditionalConfigurationLocations,
   defaultFeatures,
   DeploymentTargetRepositoryConfig,
   DeploymentTargetRepositoryType,

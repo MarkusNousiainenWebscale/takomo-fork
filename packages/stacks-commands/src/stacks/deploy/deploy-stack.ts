@@ -1,5 +1,4 @@
 import { CloudFormationStackSummary } from "@takomo/aws-model"
-import { StacksConfigRepository } from "@takomo/stacks-context"
 import {
   InternalStack,
   InternalStacksContext,
@@ -32,7 +31,6 @@ export const deployStack = async (
   stack: InternalStack,
   dependencies: Promise<StackResult>[],
   operationType: StackOperationType,
-  configRepository: StacksConfigRepository,
   stacksOperationListener: StacksOperationListener,
   expectNoChanges: boolean,
   currentStack?: CloudFormationStackSummary,
@@ -62,7 +60,6 @@ export const deployStack = async (
     state,
     currentStack,
     ctx,
-    configRepository,
     stacksOperationListener,
     expectNoChanges,
     stackExistedBeforeOperation: currentStack !== undefined,

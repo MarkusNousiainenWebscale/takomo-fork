@@ -1,5 +1,6 @@
 import { resolveCommandOutputBase } from "@takomo/core"
 import {
+  CommandPath,
   InternalStacksContext,
   StackPath,
   StackResult,
@@ -12,12 +13,13 @@ import { UndeployStacksIO } from "./model"
 import { StacksUndeployPlan } from "./plan"
 
 export const executeUndeployContext = async (
-  ctx: InternalStacksContext,
+  ctxMap: Map<CommandPath, InternalStacksContext>,
   input: StacksOperationInput,
   io: UndeployStacksIO,
   plan: StacksUndeployPlan,
+  autoConfirm: boolean,
+  concurrentStacks: number,
 ): Promise<StacksOperationOutput> => {
-  const autoConfirm = ctx.autoConfirmEnabled
   const { operations } = plan
   const { timer, ignoreDependencies } = input
 
@@ -50,12 +52,17 @@ export const executeUndeployContext = async (
     plan.operations.length,
   )
 
-  const bulkhead = Policy.bulkhead(ctx.concurrentStacks, 1000)
+  const bulkhead = Policy.bulkhead(concurrentStacks, 1000)
 
   const executions = operations.reduce((executions, operation) => {
     const dependents = ignoreDependencies
       ? []
       : operation.dependents.map((d) => executions.get(d)!)
+
+    const ctx = ctxMap.get(operation.stack.moduleInformation.path)
+    if (!ctx) {
+      throw new Error(`Expected stacks context with path '${ctx}' to exists`)
+    }
 
     const execution = bulkhead.execute(() =>
       deleteStack(
