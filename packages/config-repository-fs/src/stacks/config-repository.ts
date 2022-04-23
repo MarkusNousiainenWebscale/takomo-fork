@@ -11,7 +11,12 @@ import {
   StacksConfigRepositoryProps,
 } from "@takomo/stacks-context"
 import { HookRegistry } from "@takomo/stacks-hooks"
-import { ROOT_STACK_GROUP_PATH, SchemaRegistry } from "@takomo/stacks-model"
+import {
+  ModuleId,
+  ModuleVersion,
+  ROOT_STACK_GROUP_PATH,
+  SchemaRegistry,
+} from "@takomo/stacks-model"
 import { ResolverRegistry } from "@takomo/stacks-resolvers"
 import { createStacksSchemas } from "@takomo/stacks-schema"
 import {
@@ -59,6 +64,7 @@ export interface FileSystemStacksConfigRepositoryProps {
 export interface ChildFileSystemStacksConfigRepositoryProps
   extends FileSystemStacksConfigRepositoryProps {
   readonly isRoot: boolean
+  readonly parent?: StacksConfigRepository
 }
 
 export const createFileSystemStacksConfigRepository = async (
@@ -87,6 +93,7 @@ export const createChildFileSystemStacksConfigRepository = async ({
   modulesDir,
   confidentialValuesLoggingEnabled,
   isRoot,
+  parent,
 }: ChildFileSystemStacksConfigRepositoryProps): Promise<StacksConfigRepository> => {
   const templateEngine = createTemplateEngine()
 
@@ -201,80 +208,102 @@ export const createChildFileSystemStacksConfigRepository = async ({
   const stackGroupConfigSchema = createStackGroupConfigSchema(schemaProps)
   const moduleConfigSchema = createModuleConfigSchema(schemaProps)
 
-  return {
-    buildConfigTree: async (): Promise<ConfigTree> =>
-      buildStackGroupConfigNode({
-        templateEngine,
-        logger,
-        configFileExtension,
-        stackGroupConfigFileName,
-        moduleConfigFileExtension,
-        stacksSchemas,
-        stackConfigSchema,
-        moduleConfigSchema,
-        stackGroupConfigSchema,
-        confidentialValuesLoggingEnabled,
-        stackGroupDir: stacksDir,
-        stackGroupPath: ROOT_STACK_GROUP_PATH,
-      }).then((rootStackGroup) => ({
-        rootStackGroup,
-      })),
+  const buildConfigTree = async (): Promise<ConfigTree> =>
+    buildStackGroupConfigNode({
+      templateEngine,
+      logger,
+      configFileExtension,
+      stackGroupConfigFileName,
+      moduleConfigFileExtension,
+      stacksSchemas,
+      stackConfigSchema,
+      moduleConfigSchema,
+      stackGroupConfigSchema,
+      confidentialValuesLoggingEnabled,
+      stackGroupDir: stacksDir,
+      stackGroupPath: ROOT_STACK_GROUP_PATH,
+    }).then((rootStackGroup) => ({
+      rootStackGroup,
+    }))
 
-    loadExtensions: async (
-      resolverRegistry: ResolverRegistry,
-      hookRegistry: HookRegistry,
-      schemaRegistry: SchemaRegistry,
-    ): Promise<void> => {
-      await Promise.all([
-        loadCustomResolvers(resolversDir, logger, resolverRegistry),
-        loadCustomHooks(hooksDir, logger, hookRegistry),
-        loadCustomSchemas({ schemasDirs, logger, registry: schemaRegistry }),
-      ])
-    },
+  const loadExtensions = async (
+    resolverRegistry: ResolverRegistry,
+    hookRegistry: HookRegistry,
+    schemaRegistry: SchemaRegistry,
+  ): Promise<void> => {
+    await Promise.all([
+      loadCustomResolvers(resolversDir, logger, resolverRegistry),
+      loadCustomHooks(hooksDir, logger, hookRegistry),
+      loadCustomSchemas({ schemasDirs, logger, registry: schemaRegistry }),
+    ])
+  }
 
-    getStackTemplateContents: async ({
-      variables,
-      filename,
-      inline,
-      dynamic,
-    }: StacksConfigRepositoryProps): Promise<string> => {
-      if (filename) {
-        return getStackTemplateContentsFromFile(variables, filename, dynamic)
-      }
-      if (inline) {
-        return getStackTemplateContentsFromInline(variables, inline, dynamic)
-      }
+  const getStackTemplateContents = async ({
+    variables,
+    filename,
+    inline,
+    dynamic,
+  }: StacksConfigRepositoryProps): Promise<string> => {
+    if (filename) {
+      return getStackTemplateContentsFromFile(variables, filename, dynamic)
+    }
+    if (inline) {
+      return getStackTemplateContentsFromInline(variables, inline, dynamic)
+    }
 
-      throw new Error("Expected either filename or inline to be defined")
-    },
+    throw new Error("Expected either filename or inline to be defined")
+  }
 
-    getStacksConfigRepositoryForModule: async (
+  const hasModule = async (
+    moduleId: ModuleId,
+    moduleVersion: ModuleVersion,
+  ): Promise<boolean> => {
+    const pathToModuleConfigFile = path.join(
+      modulesDir,
       moduleId,
       moduleVersion,
+      TAKOMO_MODULE_CONFIG_FILE_NAME,
+    )
+
+    return fileExists(pathToModuleConfigFile)
+  }
+
+  const repository: StacksConfigRepository = {
+    templateEngine,
+    buildConfigTree,
+    loadExtensions,
+    getStackTemplateContents,
+    hasModule,
+    getStacksConfigRepositoryForModule: async (
+      moduleId: ModuleId,
+      moduleVersion: ModuleVersion,
     ): Promise<StacksConfigRepository> => {
-      const pathToModuleDir = path.join(modulesDir, moduleId, moduleVersion)
+      if (await hasModule(moduleId, moduleVersion)) {
+        const pathToModuleDir = path.join(modulesDir, moduleId, moduleVersion)
 
-      const pathToModuleConfigFile = path.join(
-        pathToModuleDir,
-        TAKOMO_MODULE_CONFIG_FILE_NAME,
-      )
+        return createChildFileSystemStacksConfigRepository({
+          additionalConfiguration,
+          logger,
+          regions,
+          confidentialValuesLoggingEnabled,
+          ...createProjectFilePaths(pathToModuleDir),
+          isRoot: false,
+          parent: repository,
+        })
+      }
 
-      if (!(await fileExists(pathToModuleConfigFile))) {
-        throw new Error(
-          `Module ${moduleId}@${moduleVersion} not found from dir ${modulesDir}`,
+      if (parent) {
+        return parent.getStacksConfigRepositoryForModule(
+          moduleId,
+          moduleVersion,
         )
       }
 
-      return createChildFileSystemStacksConfigRepository({
-        additionalConfiguration,
-        logger,
-        regions,
-        confidentialValuesLoggingEnabled,
-        ...createProjectFilePaths(pathToModuleDir),
-        isRoot: false,
-      })
+      throw new Error(
+        `Module ${moduleId}@${moduleVersion} not found from dir ${modulesDir}`,
+      )
     },
-
-    templateEngine,
   }
+
+  return repository
 }

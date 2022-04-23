@@ -217,4 +217,9 @@ export interface StacksConfigRepository {
     moduleId: ModuleId,
     moduleVersion: ModuleVersion,
   ) => Promise<StacksConfigRepository>
+
+  readonly hasModule: (
+    moduleId: ModuleId,
+    moduleVersion: ModuleVersion,
+  ) => Promise<boolean>
 }
