@@ -56,7 +56,15 @@ export const createTestStacksConfigRepository = async ({
 }: CreateTestStacksConfigRepositoryProps): Promise<StacksConfigRepository> =>
   createFileSystemStacksConfigRepository({
     ...ctx.filePaths,
-    ctx,
+    regions: ["eu-west-1", "eu-north-1", "us-east-1", "eu-central-1"],
+    additionalConfiguration: {
+      schemasDir: [],
+      helpers: [],
+      resolvers: [],
+      helpersDir: [],
+      partialsDir: [],
+    },
+    confidentialValuesLoggingEnabled: false,
     logger: createConsoleLogger({
       logLevel: ctx.logLevel,
       name: basename(expect.getState().testPath),
