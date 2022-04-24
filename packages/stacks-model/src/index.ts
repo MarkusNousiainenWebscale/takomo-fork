@@ -44,6 +44,7 @@ export {
   getStackNames,
   getStackPath,
   getStackPaths,
+  isModulePath,
   isNotObsolete,
   isObsolete,
   isWithinCommandPath,

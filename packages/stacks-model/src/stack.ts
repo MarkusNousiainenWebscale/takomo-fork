@@ -286,7 +286,7 @@ export const normalizeStackPath = (
 
   return normalizeStackPathInternal(
     stackPath,
-    parentPath.substr(1).split("/"),
+    parentPath.slice(1).split("/"),
     stackPath.split("/"),
   )
 }

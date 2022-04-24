@@ -88,6 +88,7 @@ export interface ConfigurableEntity {
   readonly accountIds?: ReadonlyArray<AccountId>
   readonly commandRole?: CommandRole
   readonly templateBucket?: TemplateBucketConfig
+  readonly regions: ReadonlyArray<Region>
   readonly tags: Map<TagKey, TagValue>
   readonly inheritTags: boolean
   readonly timeout?: TimeoutConfig
@@ -106,13 +107,10 @@ export interface ModuleConfig extends ConfigurableEntity {
   readonly id: ModuleId
   readonly version: ModuleVersion
   readonly name: ModuleName
-  readonly region?: Region
-  //readonly depends: ReadonlyArray<StackPath> TODO: Implement
 }
 
 export interface StackConfig extends ConfigurableEntity {
   readonly name?: StackName
-  readonly regions: ReadonlyArray<Region>
   readonly project?: Project
   readonly template: TemplateConfig
   readonly depends: ReadonlyArray<StackPath>
@@ -120,6 +118,5 @@ export interface StackConfig extends ConfigurableEntity {
 }
 
 export interface StackGroupConfig extends ConfigurableEntity {
-  readonly regions: ReadonlyArray<Region>
   readonly project?: Project
 }

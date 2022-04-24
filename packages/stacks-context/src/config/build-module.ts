@@ -76,7 +76,7 @@ export const buildModule = async ({
       helpersDir: [],
       resolvers: [],
     },
-    logger: logger.childLogger(`${moduleConfig.id}@${moduleConfig.version}`),
+    logger,
     commandPath: ROOT_STACK_GROUP_PATH,
     configRepository: moduleConfigRepository,
     ignoreDependencies: false,

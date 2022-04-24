@@ -36,6 +36,8 @@ export interface StacksSchemas {
   readonly moduleName: StringSchema
   readonly moduleId: StringSchema
   readonly moduleVersion: StringSchema
+  readonly modulePath: StringSchema
+  readonly relativeModulePath: StringSchema
 }
 
 export const createStacksSchemas = (
@@ -190,6 +192,14 @@ export const createStacksSchemas = (
   const obsolete = Joi.boolean()
   const terminationProtection = Joi.boolean()
 
+  const modulePath = Joi.string()
+    .max(100)
+    .regex(/^(\/[a-zA-Z][a-zA-Z0-9-]*)+\.module\.yml$/)
+
+  const relativeModulePath = Joi.string()
+    .max(100)
+    .regex(/^(((\/|(\.\.\/)+)?)[a-zA-Z][a-zA-Z0-9-]*)+\.module\.yml$/)
+
   const stackPath = Joi.string()
     .max(100)
     .regex(/^(\/[a-zA-Z][a-zA-Z0-9-]*)+\.yml\/?/)
@@ -199,7 +209,7 @@ export const createStacksSchemas = (
         return value
       }
 
-      const region = regionPart.substr(1)
+      const region = regionPart.slice(1)
       if (!props.regions.includes(region)) {
         return helpers.error("invalidRegion", {
           region,
@@ -328,5 +338,7 @@ export const createStacksSchemas = (
     moduleName,
     moduleVersion,
     moduleId,
+    modulePath,
+    relativeModulePath,
   }
 }

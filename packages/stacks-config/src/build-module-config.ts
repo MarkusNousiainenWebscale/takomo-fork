@@ -2,8 +2,8 @@ import {
   parseBoolean,
   parseCommandRole,
   parseOptionalBoolean,
-  parseOptionalString,
   parseOptionalStringArray,
+  parseStringArray,
 } from "@takomo/core"
 import { ModuleName, ModuleVersion } from "@takomo/stacks-model"
 import { ValidationError } from "@takomo/util"
@@ -59,7 +59,7 @@ export const buildModuleConfig = (
     obsolete: parseOptionalBoolean(record.obsolete),
     capabilities: parseOptionalStringArray(record.capabilities),
     commandRole: parseCommandRole(record.commandRole),
-    region: parseOptionalString(record.region),
+    regions: parseStringArray(record.region),
     templateBucket: parseTemplateBucket(record.templateBucket),
     tags: parseTags(record.tags),
     inheritTags: parseBoolean(record.inheritTags, true),

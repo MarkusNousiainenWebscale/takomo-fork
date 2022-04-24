@@ -96,10 +96,13 @@ export const createStackConfigSchema = (
     parameters,
     schemas,
     inheritTags,
+    relativeModulePath,
   } = createStacksSchemas({ ...props })
 
   const timeout = [timeoutInMinutes, timeoutObject]
-  const stackPaths = Joi.array().items(relativeStackPath).unique()
+  const commandPaths = Joi.array()
+    .items(relativeStackPath, relativeModulePath)
+    .unique()
 
   const projectSchema = props.denyProject ? project.forbidden() : project
   const stackNameSchema = props.requireStackName
@@ -124,7 +127,7 @@ export const createStackConfigSchema = (
     accountIds: [accountId, accountIds],
     commandRole: iamRoleArn,
     name: stackNameSchema,
-    depends: [relativeStackPath, stackPaths],
+    depends: [relativeStackPath, relativeModulePath, commandPaths],
     capabilities: stackCapabilities,
     stackPolicy: json,
     stackPolicyDuringUpdate: json,

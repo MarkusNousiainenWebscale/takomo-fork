@@ -1,24 +1,33 @@
 import {
   createStack,
+  getStackPath,
+  InternalModule,
   InternalStack,
+  isModulePath,
+  ModulePath,
   normalizeStackPath,
   StackPath,
   StackProps,
 } from "@takomo/stacks-model"
-import { TakomoError } from "@takomo/util"
+import { arrayToMap, TakomoError } from "@takomo/util"
 import R from "ramda"
+import { collectStacksRecursively } from "./common"
 import { ObsoleteDependenciesError } from "./errors"
 
 export const checkCyclicDependenciesForStack = (
   stack: InternalStack,
   stacks: Map<StackPath, InternalStack>,
+  modulePaths: ReadonlyArray<ModulePath>,
   collectedDependencies: ReadonlyArray<StackPath>,
 ): void => {
   if (stack.dependencies.length === 0) {
     return
   }
 
-  stack.dependencies.forEach((d) => {
+  const isNotModuleDependency = (dependency: StackPath): boolean =>
+    !modulePaths.some((modulePath) => dependency.startsWith(modulePath))
+
+  stack.dependencies.filter(isNotModuleDependency).forEach((d) => {
     if (collectedDependencies.includes(d)) {
       throw new TakomoError(
         `Cyclic dependency detected: ${collectedDependencies.join(
@@ -27,7 +36,12 @@ export const checkCyclicDependenciesForStack = (
       )
     }
 
-    checkCyclicDependenciesForStack(stacks.get(d)!, stacks, [
+    const nextStack = stacks.get(d)
+    if (!nextStack) {
+      throw new Error(`Expected stack to exists with stack path: ${d}`)
+    }
+
+    checkCyclicDependenciesForStack(nextStack, stacks, modulePaths, [
       ...collectedDependencies,
       d,
     ])
@@ -36,18 +50,26 @@ export const checkCyclicDependenciesForStack = (
 
 export const checkCyclicDependencies = (
   stacks: Map<StackPath, InternalStack>,
+  modulePaths: ReadonlyArray<ModulePath>,
 ): void => {
-  stacks.forEach((s) => checkCyclicDependenciesForStack(s, stacks, [s.path]))
+  stacks.forEach((s) =>
+    checkCyclicDependenciesForStack(s, stacks, modulePaths, [s.path]),
+  )
 }
 
 export const checkObsoleteDependencies = (
   stacks: Map<StackPath, InternalStack>,
+  modulePaths: ReadonlyArray<ModulePath>,
 ): void => {
+  const isNotModuleDependency = (dependency: StackPath): boolean =>
+    !modulePaths.some((modulePath) => dependency.startsWith(modulePath))
+
   const stacksWithObsoleteDependencies = Array.from(stacks.values())
     .filter((stack) => !stack.obsolete)
     .map((stack) => {
-      const obsoleteDependencies = stack.dependencies.filter(
-        (dependencyPath) => {
+      const obsoleteDependencies = stack.dependencies
+        .filter(isNotModuleDependency)
+        .filter((dependencyPath) => {
           const dependencyStack = stacks.get(dependencyPath)
           if (!dependencyStack) {
             throw new Error(
@@ -55,8 +77,7 @@ export const checkObsoleteDependencies = (
             )
           }
           return dependencyStack.obsolete
-        },
-      )
+        })
 
       return {
         from: stack.path,
@@ -116,11 +137,23 @@ export const populateDependents = (stacks: StackProps[]): StackProps[] =>
 
 export const processStackDependencies = (
   stacks: ReadonlyArray<InternalStack>,
+  modulesMap: Map<ModulePath, InternalModule>,
 ): ReadonlyArray<InternalStack> => {
   const processed = stacks
     .map((stack) => stack.toProps())
     .map((stack) => {
       const stackDependencies = stack.dependencies.map((dependency) => {
+        if (isModulePath(dependency)) {
+          const matchingModule = modulesMap.get(dependency)
+          if (!matchingModule) {
+            throw new TakomoError(
+              `Dependency ${dependency} in stack ${stack.path} refers to a non-existing module`,
+            )
+          }
+
+          return collectStacksRecursively(matchingModule.ctx).map(getStackPath)
+        }
+
         const matching = stacks
           .filter((other) => other.path.startsWith(dependency))
           .map((other) => other.path)
@@ -176,7 +209,7 @@ const sortStacks = (
   stacks: ReadonlyArray<InternalStack>,
   selector: (stack: InternalStack) => ReadonlyArray<StackPath>,
 ): ReadonlyArray<InternalStack> => {
-  const unsorted = new Map(stacks.map((s) => [s.path, s]))
+  const unsorted = arrayToMap(stacks, getStackPath)
   const sorted = new Array<InternalStack>()
   while (unsorted.size > 0) {
     Array.from(unsorted.values())

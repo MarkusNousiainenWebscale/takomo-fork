@@ -5,6 +5,8 @@ import { HookRegistry } from "@takomo/stacks-hooks"
 import {
   CommandPath,
   createStackGroup,
+  getModulePath,
+  getStackPath,
   InternalModule,
   InternalStack,
   isWithinCommandPath,
@@ -318,14 +320,19 @@ export const processConfigTree = async ({
     status.reset()
   }
 
-  const allStacks = processStackDependencies(status.getStacks())
+  const allModules = status.getModules()
+  const modulesMap = arrayToMap(allModules, getModulePath)
+  const allStacks = processStackDependencies(status.getStacks(), modulesMap)
   const allStackGroups = status.getStackGroups()
   const root = status.getRootStackGroup()
-  const stacksByPath = arrayToMap(allStacks, (s) => s.path)
-  const allModules = status.getModules()
+  const stacksByPath = arrayToMap(allStacks, getStackPath)
 
-  checkCyclicDependencies(stacksByPath)
-  checkObsoleteDependencies(stacksByPath)
+  const modulePaths = allModules.map(getModulePath)
+
+  checkCyclicDependencies(stacksByPath, modulePaths)
+  checkObsoleteDependencies(stacksByPath, modulePaths)
+
+  // TODO: Handle module dependencies and dependents
 
   return populateChildrenAndStacks(root, allStacks, allStackGroups, allModules)
 }
