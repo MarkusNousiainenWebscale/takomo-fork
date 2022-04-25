@@ -1,5 +1,4 @@
 import { StackName } from "@takomo/aws-model"
-import { MODULE_CONFIG_FILE_EXTENSION } from "@takomo/config-repository-fs/dist/constants"
 import R from "ramda"
 import { CommandPath } from "./command"
 import { InternalModule, ModulePath } from "./module"
@@ -57,4 +56,4 @@ export const getModulePath = ({ path }: InternalModule): ModulePath => path
  * @hidden
  */
 export const isModulePath = (commandPath: CommandPath): boolean =>
-  commandPath.endsWith(MODULE_CONFIG_FILE_EXTENSION)
+  commandPath.endsWith(".module.yml")
