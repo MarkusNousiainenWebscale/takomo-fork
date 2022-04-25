@@ -1,4 +1,8 @@
-import { getStackPaths, InternalStack } from "@takomo/stacks-model"
+import {
+  getStackPath,
+  getStackPaths,
+  InternalStack,
+} from "@takomo/stacks-model"
 import { sortStacksForDeploy } from "../../src/dependencies"
 import { createStack } from "../helpers"
 
@@ -16,7 +20,7 @@ describe("#sortStacksForDeploy", () => {
     const a = createStack({ name: "a", path: "/a.yml" })
     const b = createStack({ name: "b", path: "/b.yml" })
 
-    const sorted = sortStacksForDeploy([a, b]).map((s) => s.path)
+    const sorted = sortStacksForDeploy([a, b]).map(getStackPath)
     expect(sorted).toStrictEqual([a.path, b.path])
   })
 
@@ -28,7 +32,7 @@ describe("#sortStacksForDeploy", () => {
     })
     const b = createStack({ name: "b", path: "/b.yml" })
 
-    const sorted = sortStacksForDeploy([a, b]).map((s) => s.path)
+    const sorted = sortStacksForDeploy([a, b]).map(getStackPath)
     expect(sorted).toStrictEqual([b.path, a.path])
   })
 
@@ -49,7 +53,7 @@ describe("#sortStacksForDeploy", () => {
       dependencies: ["/b.yml"],
     })
 
-    const sorted = sortStacksForDeploy([a, b, c]).map((s) => s.path)
+    const sorted = sortStacksForDeploy([a, b, c]).map(getStackPath)
     expect(sorted).toStrictEqual([b.path, c.path, a.path])
   })
 
@@ -96,7 +100,7 @@ describe("#sortStacksForDeploy", () => {
     })
 
     const sorted = sortStacksForDeploy([a, b, c, d, e, f, g, h]).map(
-      (s) => s.path,
+      getStackPath,
     )
 
     expect(sorted).toStrictEqual([
@@ -323,7 +327,7 @@ describe("#sortStacksForDeploy", () => {
       euWestD,
       euWestC,
       euWestB,
-    ]).map((s) => s.path)
+    ]).map(getStackPath)
 
     expect(sorted).toStrictEqual([
       euNorthB.path,

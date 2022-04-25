@@ -1,3 +1,4 @@
+import { getStackPath } from "@takomo/stacks-model"
 import { InternalStack, StackPath } from "@takomo/stacks-model/src"
 import { arrayToMap } from "@takomo/util"
 import { mock } from "jest-mock-extended"
@@ -11,12 +12,12 @@ const stack = (
 
 const stacksMap = (
   ...stacks: ReadonlyArray<InternalStack>
-): Map<StackPath, InternalStack> => arrayToMap(stacks, (s) => s.path)
+): Map<StackPath, InternalStack> => arrayToMap(stacks, getStackPath)
 
 const doCheckObsoleteDependencies = (
   ...stacks: ReadonlyArray<InternalStack>
 ): void => {
-  checkObsoleteDependencies(stacksMap(...stacks))
+  checkObsoleteDependencies(stacksMap(...stacks), [])
 }
 
 describe("#checkObsoleteDependencies", () => {
