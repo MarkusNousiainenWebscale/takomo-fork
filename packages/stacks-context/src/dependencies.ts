@@ -65,17 +65,23 @@ export const checkObsoleteDependencies = (
       const obsoleteDependencies = stack.dependencies.filter(
         (dependencyPath) => {
           if (isModulePath(dependencyPath)) {
-            // TODO: Handle obsolete modules
-            return false
-          } else {
-            const dependencyStack = stacks.get(dependencyPath)
-            if (!dependencyStack) {
+            const module = modules.get(dependencyPath)
+            if (!module) {
               throw new Error(
-                `Expected stack to found with path: ${dependencyPath}`,
+                `Expected module to be found with path: ${dependencyPath}`,
               )
             }
-            return dependencyStack.obsolete
+
+            return module.obsolete
           }
+
+          const dependencyStack = stacks.get(dependencyPath)
+          if (!dependencyStack) {
+            throw new Error(
+              `Expected stack to be found with path: ${dependencyPath}`,
+            )
+          }
+          return dependencyStack.obsolete
         },
       )
 

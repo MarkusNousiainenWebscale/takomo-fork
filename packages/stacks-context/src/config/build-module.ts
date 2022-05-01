@@ -44,7 +44,9 @@ export const buildModule = async ({
     moduleConfig.ignore !== undefined ? moduleConfig.ignore : parent.ignore
 
   const obsolete =
-    moduleConfig.obsolete !== undefined ? parent.obsolete : parent.obsolete
+    moduleConfig.obsolete !== undefined
+      ? moduleConfig.obsolete
+      : parent.obsolete
 
   const tags = moduleConfig.inheritTags ? new Map(parent.tags) : new Map()
 

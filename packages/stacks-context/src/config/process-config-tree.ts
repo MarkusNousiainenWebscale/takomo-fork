@@ -92,7 +92,9 @@ export const populateChildrenAndStacks = (
       populateChildrenAndStacks(child, allStacks, allStackGroups, allModules),
     )
 
-  const modules = allModules.filter((m) => m.parentPath === stackGroup.path)
+  const modules = allModules
+    .filter((m) => m.parentPath === stackGroup.path)
+    .filter((m) => !m.ignore)
 
   const stacks = allStacks
     .filter((s) => s.stackGroupPath === stackGroup.path)

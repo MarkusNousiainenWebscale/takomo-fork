@@ -12,7 +12,7 @@ interface Reference {
 export class ObsoleteDependenciesError extends TakomoError {
   constructor(references: ReadonlyArray<Reference>) {
     const message =
-      `Dependencies to obsolete stacks detected.\n\nThe following ${references.length} stack(s) depend on stacks marked as obsolete:\n\n` +
+      `Dependencies to obsolete stacks/modules detected.\n\nThe following ${references.length} stack(s) depend on stacks/modules marked as obsolete:\n\n` +
       references.map(
         ({ from, to }) =>
           `  ${from}:\n${to
@@ -23,8 +23,8 @@ export class ObsoleteDependenciesError extends TakomoError {
       )
 
     super(message, {
-      info: "Stacks can't have dependencies on stacks marked as obsolete.",
-      instructions: ["Remove dependencies to obsolete stacks."],
+      info: "Stacks can't have dependencies on stacks or modules marked as obsolete.",
+      instructions: ["Remove dependencies to obsolete stacks/modules."],
     })
   }
 }
