@@ -40,6 +40,7 @@ export {
 } from "./stack-group"
 export {
   getModulePath,
+  getStackGroupPath,
   getStackName,
   getStackNames,
   getStackPath,
@@ -47,5 +48,7 @@ export {
   isModulePath,
   isNotObsolete,
   isObsolete,
+  isStackGroupPath,
+  isStackPath,
   isWithinCommandPath,
 } from "./util"

@@ -3,6 +3,7 @@ import R from "ramda"
 import { CommandPath } from "./command"
 import { InternalModule, ModulePath } from "./module"
 import { InternalStack, Stack, StackPath } from "./stack"
+import { StackGroup, StackGroupPath } from "./stack-group"
 
 /**
  * @hidden
@@ -27,6 +28,12 @@ export const getStackPaths: (
 export const getStackNames: (
   stacks: ReadonlyArray<Stack>,
 ) => ReadonlyArray<StackName> = R.map(getStackName)
+
+/**
+ * @hidden
+ */
+export const getStackGroupPath = (stackGroup: StackGroup): StackGroupPath =>
+  stackGroup.path
 
 /**
  * @hidden
@@ -58,3 +65,31 @@ export const getModulePath = (module: InternalModule): ModulePath =>
  */
 export const isModulePath = (commandPath: CommandPath): boolean =>
   commandPath.endsWith(".module.yml")
+
+/**
+ * @hidden
+ */
+export const isStackPath = (commandPath: CommandPath): boolean => {
+  if (isModulePath(commandPath)) {
+    return false
+  }
+  if (commandPath.endsWith(".yml")) {
+    return true
+  }
+  const parts = commandPath.split("/")
+  if (parts.length < 2) {
+    return false
+  }
+  const part = parts.slice(-2, -1)[0]
+  if (isModulePath(part)) {
+    return false
+  }
+
+  return part.endsWith(".yml")
+}
+
+/**
+ * @hidden
+ */
+export const isStackGroupPath = (commandPath: CommandPath): boolean =>
+  !(isModulePath(commandPath) || isStackPath(commandPath))

@@ -10,6 +10,7 @@ import {
   getStackPaths,
   InternalStack,
   InternalStacksContext,
+  isStackGroupPath,
   ModuleInformation,
   normalizeStackPath,
   ROOT_STACK_GROUP_PATH,
@@ -22,7 +23,6 @@ import {
   ResolverRegistry,
 } from "@takomo/stacks-resolvers"
 import { arrayToMap, collectFromHierarchy, TkmLogger } from "@takomo/util"
-import { isStackGroupPath } from "../common"
 import { processStackDependencies } from "../dependencies"
 import {
   CommandPathMatchesNoStacksError,
