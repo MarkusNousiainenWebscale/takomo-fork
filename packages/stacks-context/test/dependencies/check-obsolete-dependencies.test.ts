@@ -17,7 +17,7 @@ const stacksMap = (
 const doCheckObsoleteDependencies = (
   ...stacks: ReadonlyArray<InternalStack>
 ): void => {
-  checkObsoleteDependencies(stacksMap(...stacks), [])
+  checkObsoleteDependencies(stacksMap(...stacks), new Map())
 }
 
 describe("#checkObsoleteDependencies", () => {
@@ -72,8 +72,8 @@ describe("#checkObsoleteDependencies", () => {
         ),
       ),
     ).toThrow(
-      "Dependencies to obsolete stacks detected.\n\n" +
-        "The following 1 stack(s) depend on stacks marked as obsolete:\n\n" +
+      "Dependencies to obsolete stacks/modules detected.\n\n" +
+        "The following 1 stack(s) depend on stacks/modules marked as obsolete:\n\n" +
         "  /s1.yml/eu-west-1:\n" +
         "    - /s2.yml/eu-west-1 (marked as obsolete)\n" +
         "    - /s3.yml/eu-west-1 (marked as obsolete)\n",
