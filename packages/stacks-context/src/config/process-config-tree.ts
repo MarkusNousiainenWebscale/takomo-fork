@@ -294,9 +294,11 @@ export const processConfigTree = async ({
   }
 
   const allModules = status.getModules()
+  const modulesByPath = arrayToMap(allModules, getModulePath)
+
   const allStacks = processStackDependencies(
     status.getStacks(),
-    allModules,
+    modulesByPath,
     false,
   )
   const allStackGroups = status.getStackGroups()

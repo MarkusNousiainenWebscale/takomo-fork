@@ -137,7 +137,7 @@ export const populateDependents = (stacks: StackProps[]): StackProps[] =>
 
 export const processStackDependencies = (
   stacks: ReadonlyArray<InternalStack>,
-  modulePaths: ReadonlyArray<InternalModule>,
+  modules: Map<ModulePath, InternalModule>,
   convertModuleDependencies: boolean,
 ): ReadonlyArray<InternalStack> => {
   const processed = stacks
@@ -145,9 +145,8 @@ export const processStackDependencies = (
     .map((stack) => {
       const stackDependencies = stack.dependencies.map((dependency) => {
         if (isModulePath(dependency)) {
-          if (
-            !modulePaths.find((m) => m.moduleInformation.path === dependency)
-          ) {
+          const module = modules.get(dependency)
+          if (!module) {
             throw new TakomoError(
               `Dependency ${dependency} in stack ${stack.path} refers to a non-existing module`,
             )

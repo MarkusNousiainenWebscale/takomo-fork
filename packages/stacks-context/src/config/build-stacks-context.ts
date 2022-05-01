@@ -5,6 +5,7 @@ import { createHookRegistry } from "@takomo/stacks-hooks"
 import {
   CommandPath,
   createSchemaRegistry,
+  getModulePath,
   getStackPath,
   getStackPaths,
   InternalStack,
@@ -190,6 +191,7 @@ export const buildStacksContext = async (
   const allStackGroups = collectStackGroups(rootModule.root)
   const allStacks = allStackGroups.map((sg) => sg.stacks).flat()
   const allModules = allStackGroups.map((sg) => sg.modules).flat()
+  const modulesByPath = arrayToMap(allModules, getModulePath)
 
   return createStacksContext({
     logger,
@@ -197,7 +199,7 @@ export const buildStacksContext = async (
     moduleContext,
     credentialManager,
     allStackGroups, // TODO: Is this needed?
-    allStacks: processStackDependencies(allStacks, allModules, true),
+    allStacks: processStackDependencies(allStacks, modulesByPath, true),
   })
 }
 
