@@ -22,6 +22,7 @@ import {
 } from "@takomo/stacks-resolvers"
 import { arrayToMap, collectFromHierarchy, TkmLogger } from "@takomo/util"
 import { isStackGroupPath } from "../common"
+import { processStackDependencies } from "../dependencies"
 import {
   CommandPathMatchesNoStacksError,
   ModuleContext,
@@ -188,15 +189,15 @@ export const buildStacksContext = async (
 
   const allStackGroups = collectStackGroups(rootModule.root)
   const allStacks = allStackGroups.map((sg) => sg.stacks).flat()
-  // const allModules = allStackGroups.map((sg) => sg.modules).flat()
+  const allModules = allStackGroups.map((sg) => sg.modules).flat()
 
   return createStacksContext({
     logger,
     ctx,
     moduleContext,
     credentialManager,
-    allStackGroups,
-    allStacks,
+    allStackGroups, // TODO: Is this needed?
+    allStacks: processStackDependencies(allStacks, allModules, true),
   })
 }
 
@@ -226,8 +227,8 @@ const createStacksContext = (
     moduleContext.moduleInformation,
   )
 
-  const stacks = allStacks.filter(
-    (s) => s.moduleInformation.path === moduleContext.moduleInformation.path,
+  const stacks = allStacks.filter((s) =>
+    s.path.startsWith(moduleContext.moduleInformation.path),
   )
 
   logger.debugObject(`Stacks:`, () => getStackPaths(stacks))
@@ -243,12 +244,8 @@ const createStacksContext = (
     throw new Error(`Module stack group not found`)
   }
 
-  const stackGroupsByPath = arrayToMap(stackGroups, (s) => s.path)
   const stacksByPath = arrayToMap(stacks, getStackPath)
   const templateEngine = moduleContext.configRepository.templateEngine
-
-  const getStackGroup = (stackGroupPath: StackGroupPath) =>
-    stackGroupsByPath.get(stackGroupPath)
 
   const getStackByExactPath = (
     path: StackPath,
@@ -304,11 +301,10 @@ const createStacksContext = (
     ...moduleContext,
     credentialManager,
     templateEngine,
-    rootStackGroup,
+    rootStackGroup, // TODO: is this needed?
     stacks,
     children,
     moduleInformation,
-    getStackGroup,
     getStackByExactPath,
     getStacksByPath,
     getStackTemplateContents,
