@@ -8,8 +8,8 @@ import {
 } from "@takomo/stacks-model"
 import { TkmLogger } from "@takomo/util"
 import { ModuleContext } from "../model"
-import { createModuleContext } from "./build-stacks-context"
 import { ModuleConfigNode } from "./config-tree"
+import { createModuleContext } from "./create-module-context"
 import { createVariablesForModuleConfigFile } from "./create-variables-for-module-config-file"
 import { processConfigTree } from "./process-config-tree"
 
@@ -55,6 +55,7 @@ export const buildModule = async ({
   const childModuleContext = await createModuleContext({
     logger,
     configRepository: moduleConfigRepository,
+    additionalConfigurationLocations: ctx.projectConfig, // TODO: Module specific-configs?
     moduleInformation: {
       path: modulePath,
       name: moduleName,

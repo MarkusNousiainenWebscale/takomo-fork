@@ -1,3 +1,4 @@
+import { ROOT_STACK_GROUP_PATH } from "./constants"
 import { StackGroup, StackGroupPath } from "./stack-group"
 
 /**
@@ -42,3 +43,14 @@ export interface ModuleInformation {
   readonly stackNamePrefix: string
   readonly stackPathPrefix: string
 }
+
+/**
+ * @hidden
+ */
+export const createRootModuleInformation = (): ModuleInformation => ({
+  path: ROOT_STACK_GROUP_PATH,
+  name: "",
+  stackPathPrefix: "",
+  stackNamePrefix: "",
+  isRoot: true,
+})

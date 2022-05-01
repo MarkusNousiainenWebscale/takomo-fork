@@ -11,10 +11,9 @@ describe("Helpers from custom dirs", () => {
       .expectStackCreateSuccess({
         stackName,
         stackPath,
-      })
-      .expectDeployedCfStackV2({
-        stackPath,
-        description: "CODE OTHER",
+        expectDeployedStack: {
+          description: "CODE OTHER",
+        },
       })
       .assert())
 })

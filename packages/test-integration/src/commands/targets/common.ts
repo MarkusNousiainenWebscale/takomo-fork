@@ -32,13 +32,7 @@ export const createTestDeploymentTargetsConfigRepository = async ({
     ctx,
     regions: ["eu-west-1", "eu-north-1", "us-east-1", "eu-central-1"],
     confidentialValuesLoggingEnabled: false,
-    additionalConfiguration: {
-      schemasDir: [],
-      helpers: [],
-      resolvers: [],
-      helpersDir: [],
-      partialsDir: [],
-    },
+    additionalConfiguration: ctx.projectConfig,
     pathToDeploymentConfigFile,
     logger: createConsoleLogger({
       logLevel: ctx.logLevel,

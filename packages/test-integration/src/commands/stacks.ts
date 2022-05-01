@@ -57,13 +57,7 @@ export const createTestStacksConfigRepository = async ({
   createFileSystemStacksConfigRepository({
     ...ctx.filePaths,
     regions: ["eu-west-1", "eu-north-1", "us-east-1", "eu-central-1"],
-    additionalConfiguration: {
-      schemasDir: [],
-      helpers: [],
-      resolvers: [],
-      helpersDir: [],
-      partialsDir: [],
-    },
+    additionalConfiguration: ctx.projectConfig,
     confidentialValuesLoggingEnabled: false,
     logger: createConsoleLogger({
       logLevel: ctx.logLevel,

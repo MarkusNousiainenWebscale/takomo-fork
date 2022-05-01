@@ -4,6 +4,7 @@ export { ROOT_STACK_GROUP_PATH } from "./constants"
 export { InternalStacksContext, StacksContext } from "./context"
 export * from "./hook"
 export {
+  createRootModuleInformation,
   InternalModule,
   ModuleId,
   ModuleInformation,
