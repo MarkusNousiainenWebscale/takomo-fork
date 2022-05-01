@@ -10,6 +10,7 @@ import {
 } from "@takomo/aws-model"
 import { CommandRole, Project, Vars } from "@takomo/core"
 import {
+  CommandPath,
   HookConfig,
   ModuleId,
   ModuleName,
@@ -95,6 +96,7 @@ export interface ModuleConfig {
   readonly terminationProtection?: boolean
   readonly regions: ReadonlyArray<Region>
   readonly accountIds?: ReadonlyArray<AccountId>
+  readonly depends: ReadonlyArray<CommandPath>
 }
 
 export interface StackConfig {

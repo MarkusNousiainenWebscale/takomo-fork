@@ -1,3 +1,4 @@
+import { CommandPath } from "./command"
 import { ROOT_STACK_GROUP_PATH } from "./constants"
 import { StackGroup, StackGroupPath } from "./stack-group"
 
@@ -26,13 +27,8 @@ export type ModuleName = string
  */
 export interface InternalModule {
   readonly parentPath?: StackGroupPath
-  // readonly name: ModuleName
-  // readonly ctx: InternalStacksContext
-  // readonly parent: StackGroup
   readonly root: StackGroup
   readonly moduleInformation: ModuleInformation
-  readonly ignore: boolean
-  readonly obsolete: boolean
 }
 
 /**
@@ -44,6 +40,9 @@ export interface ModuleInformation {
   readonly isRoot: boolean
   readonly stackNamePrefix: string
   readonly stackPathPrefix: string
+  readonly dependencies: ReadonlyArray<CommandPath>
+  readonly ignore: boolean
+  readonly obsolete: boolean
 }
 
 /**
@@ -55,4 +54,7 @@ export const createRootModuleInformation = (): ModuleInformation => ({
   stackPathPrefix: "",
   stackNamePrefix: "",
   isRoot: true,
+  dependencies: [],
+  ignore: false,
+  obsolete: false,
 })

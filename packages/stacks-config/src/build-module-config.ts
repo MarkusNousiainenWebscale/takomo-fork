@@ -37,5 +37,6 @@ export const buildModuleConfig = (
     obsolete: parseOptionalBoolean(record.obsolete),
     inheritTags: parseBoolean(record.inheritTags, true),
     regions: parseStringArray(record.region),
+    depends: parseStringArray(record.depends),
   })
 }

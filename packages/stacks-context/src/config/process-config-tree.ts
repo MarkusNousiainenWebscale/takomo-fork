@@ -21,6 +21,7 @@ import R from "ramda"
 import {
   checkCyclicDependencies,
   checkObsoleteDependencies,
+  processModuleDependencies,
   processStackDependencies,
 } from "../dependencies"
 import { ModuleContext } from "../model"
@@ -94,7 +95,7 @@ export const populateChildrenAndStacks = (
 
   const modules = allModules
     .filter((m) => m.parentPath === stackGroup.path)
-    .filter((m) => !m.ignore)
+    .filter((m) => !m.moduleInformation.ignore)
 
   const stacks = allStacks
     .filter((s) => s.stackGroupPath === stackGroup.path)
@@ -311,13 +312,19 @@ export const processConfigTree = async ({
     modulesByPath,
     false,
   )
+
+  const processedModules = processModuleDependencies(
+    allModules,
+    allStacks,
+    false,
+  )
+
   const allStackGroups = status.getStackGroups()
   const rootStackGroup = status.getStackGroups().find((s) => s.root)
   const stacksByPath = arrayToMap(allStacks, getStackPath)
 
-  const moduleByPath = arrayToMap(allModules, getModulePath)
+  const moduleByPath = arrayToMap(processedModules, getModulePath)
 
-  // TODO: Handle cyclic deps from modules
   checkCyclicDependencies(stacksByPath, moduleByPath)
 
   // TODO: Handle obsolete modules
@@ -335,7 +342,7 @@ export const processConfigTree = async ({
     rootStackGroup,
     allStacks,
     allStackGroups,
-    allModules,
+    processedModules,
   )
 
   return {

@@ -141,15 +141,7 @@ interface CreateModuleConfigSchemaProps {
 export const createModuleConfigSchema = (
   props: CreateModuleConfigSchemaProps,
 ): ObjectSchema => {
-  const { data, json } = createCommonSchema()
-  const {
-    regions,
-    tags,
-    iamRoleArn,
-    accountId,
-    accountIds,
-    stackCapabilities,
-  } = createAwsSchemas({
+  const { regions, tags, accountId, accountIds } = createAwsSchemas({
     ...props,
   })
 
@@ -157,38 +149,29 @@ export const createModuleConfigSchema = (
     ignore,
     obsolete,
     terminationProtection,
-    templateBucket,
-    hooks,
-    timeoutInMinutes,
-    timeoutObject,
-    schemas,
     inheritTags,
     moduleId,
     moduleVersion,
     moduleName,
+    relativeStackPath,
+    relativeModulePath,
   } = createStacksSchemas({ ...props })
 
-  const timeout = [timeoutInMinutes, timeoutObject]
+  const commandPaths = Joi.array()
+    .items(relativeStackPath, relativeModulePath)
+    .unique()
 
   return Joi.object({
     name: moduleName.required(),
     id: moduleId.required(),
     version: moduleVersion.required(),
-    // templateBucket,
+    accountIds: [accountId, accountIds],
+    depends: [relativeStackPath, relativeModulePath, commandPaths],
     tags,
-    // hooks,
-    // data,
     regions,
     ignore,
     obsolete,
     terminationProtection,
-    // timeout,
-    // schemas,
     inheritTags,
-    accountIds: [accountId, accountIds],
-    // commandRole: iamRoleArn,
-    // capabilities: stackCapabilities,
-    // stackPolicy: json,
-    // stackPolicyDuringUpdate: json,
   })
 }

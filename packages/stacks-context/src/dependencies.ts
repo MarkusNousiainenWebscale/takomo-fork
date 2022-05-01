@@ -1,4 +1,5 @@
 import {
+  CommandPath,
   createStack,
   getStackPath,
   InternalModule,
@@ -23,35 +24,76 @@ export const checkCyclicDependenciesForStack = (
     return
   }
 
-  stack.dependencies
-    .filter((d) => !isModulePath(d))
-    .forEach((d) => {
-      if (collectedDependencies.includes(d)) {
-        throw new TakomoError(
-          `Cyclic dependency detected: ${collectedDependencies.join(
-            " -> ",
-          )} -> ${d}`,
-        )
-      }
+  stack.dependencies.forEach((dependency) => {
+    checkCyclicDependency(stacks, modules, collectedDependencies, dependency)
+  })
+}
 
-      const nextStack = stacks.get(d)
-      if (!nextStack) {
-        throw new Error(`Expected stack to exists with stack path: ${d}`)
-      }
+export const checkCyclicDependenciesForModule = (
+  module: InternalModule,
+  stacks: Map<StackPath, InternalStack>,
+  modules: Map<ModulePath, InternalModule>,
+  collectedDependencies: ReadonlyArray<StackPath>,
+): void => {
+  if (module.moduleInformation.dependencies.length === 0) {
+    return
+  }
 
-      checkCyclicDependenciesForStack(nextStack, stacks, modules, [
-        ...collectedDependencies,
-        d,
-      ])
-    })
+  module.moduleInformation.dependencies.forEach((dependency) => {
+    checkCyclicDependency(stacks, modules, collectedDependencies, dependency)
+  })
+}
+
+const checkCyclicDependency = (
+  stacks: Map<StackPath, InternalStack>,
+  modules: Map<ModulePath, InternalModule>,
+  collectedDependencies: ReadonlyArray<StackPath>,
+  dependency: CommandPath,
+): void => {
+  if (collectedDependencies.includes(dependency)) {
+    throw new TakomoError(
+      `Cyclic dependency detected: ${collectedDependencies.join(
+        " -> ",
+      )} -> ${dependency}`,
+    )
+  }
+
+  if (isModulePath(dependency)) {
+    const nextModule = modules.get(dependency)
+    if (!nextModule) {
+      throw new Error(
+        `Expected module to exists with stack path: ${dependency}`,
+      )
+    }
+
+    checkCyclicDependenciesForModule(nextModule, stacks, modules, [
+      ...collectedDependencies,
+      dependency,
+    ])
+  } else {
+    const nextStack = stacks.get(dependency)
+    if (!nextStack) {
+      throw new Error(`Expected stack to exists with stack path: ${dependency}`)
+    }
+
+    checkCyclicDependenciesForStack(nextStack, stacks, modules, [
+      ...collectedDependencies,
+      dependency,
+    ])
+  }
 }
 
 export const checkCyclicDependencies = (
   stacks: Map<StackPath, InternalStack>,
   modules: Map<ModulePath, InternalModule>,
 ): void => {
-  stacks.forEach((s) =>
-    checkCyclicDependenciesForStack(s, stacks, modules, [s.path]),
+  stacks.forEach((stack) =>
+    checkCyclicDependenciesForStack(stack, stacks, modules, [stack.path]),
+  )
+  modules.forEach((module) =>
+    checkCyclicDependenciesForModule(module, stacks, modules, [
+      module.moduleInformation.path,
+    ]),
   )
 }
 
@@ -72,7 +114,7 @@ export const checkObsoleteDependencies = (
               )
             }
 
-            return module.obsolete
+            return module.moduleInformation.obsolete
           }
 
           const dependencyStack = stacks.get(dependencyPath)
@@ -94,6 +136,43 @@ export const checkObsoleteDependencies = (
 
   if (stacksWithObsoleteDependencies.length > 0) {
     throw new ObsoleteDependenciesError(stacksWithObsoleteDependencies)
+  }
+
+  const modulesWithObsoleteDependencies = Array.from(modules.values())
+    .filter((module) => !module.moduleInformation.obsolete)
+    .map((module) => {
+      const obsoleteDependencies = module.moduleInformation.dependencies.filter(
+        (dependencyPath) => {
+          if (isModulePath(dependencyPath)) {
+            const module = modules.get(dependencyPath)
+            if (!module) {
+              throw new Error(
+                `Expected module to be found with path: ${dependencyPath}`,
+              )
+            }
+
+            return module.moduleInformation.obsolete
+          }
+
+          const dependencyStack = stacks.get(dependencyPath)
+          if (!dependencyStack) {
+            throw new Error(
+              `Expected stack to be found with path: ${dependencyPath}`,
+            )
+          }
+          return dependencyStack.obsolete
+        },
+      )
+
+      return {
+        from: module.moduleInformation.path,
+        to: obsoleteDependencies,
+      }
+    })
+    .filter(({ to }) => to.length > 0)
+
+  if (modulesWithObsoleteDependencies.length > 0) {
+    throw new ObsoleteDependenciesError(modulesWithObsoleteDependencies)
   }
 }
 
@@ -140,6 +219,65 @@ export const populateDependents = (stacks: StackProps[]): StackProps[] =>
     const dependents = collectStackDirectDependents(stack.path, stacks)
     return [...collected, { ...stack, dependents }]
   }, new Array<StackProps>())
+
+export const processModuleDependencies = (
+  modules: ReadonlyArray<InternalModule>,
+  stacks: ReadonlyArray<InternalStack>,
+  convertModuleDependencies: boolean,
+): ReadonlyArray<InternalModule> => {
+  const processed: ReadonlyArray<InternalModule> = modules.map((module) => {
+    const moduleDependencies = module.moduleInformation.dependencies.map(
+      (dependency) => {
+        if (isModulePath(dependency)) {
+          const matchingModule = modules.find(
+            (m) => m.moduleInformation.path === dependency,
+          )
+          if (!matchingModule) {
+            throw new TakomoError(
+              `Dependency ${dependency} in module ${module.moduleInformation.path} refers to a non-existing module`,
+            )
+          }
+
+          if (convertModuleDependencies) {
+            return stacks
+              .filter((other) => other.path.startsWith(dependency))
+              .map(getStackPath)
+          }
+
+          return dependency
+        }
+
+        const matching = stacks
+          .filter((other) => other.path.startsWith(dependency))
+          .map(getStackPath)
+
+        if (matching.length === 0) {
+          throw new TakomoError(
+            `Dependency ${dependency} in stack ${module.moduleInformation.path} refers to a non-existing stack`,
+          )
+        }
+
+        return matching
+      },
+    )
+
+    // TODO: inputs
+    const parameterDependencies = new Array<CommandPath>()
+
+    return {
+      ...module,
+      moduleInformation: {
+        ...module.moduleInformation,
+        dependencies: R.uniq(
+          [...moduleDependencies, ...parameterDependencies].flat(),
+        ),
+      },
+    }
+  })
+
+  // TODO: process dependents
+  return processed
+}
 
 export const processStackDependencies = (
   stacks: ReadonlyArray<InternalStack>,

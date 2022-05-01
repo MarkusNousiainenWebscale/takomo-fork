@@ -3,6 +3,7 @@ import { IamRoleArn } from "@takomo/aws-model"
 import { InternalCommandContext } from "@takomo/core"
 import {
   InternalModule,
+  normalizeStackPath,
   ROOT_STACK_GROUP_PATH,
   StackGroup,
 } from "@takomo/stacks-model"
@@ -64,6 +65,10 @@ export const buildModule = async ({
   const regions =
     moduleConfig.regions.length > 0 ? moduleConfig.regions : parent.regions
 
+  const dependencies = moduleConfig.depends.map((d) =>
+    normalizeStackPath(parent.path, d),
+  )
+
   const modulePath = moduleContext.moduleInformation.isRoot
     ? moduleConfigNode.path
     : moduleContext.moduleInformation.path + moduleConfigNode.path
@@ -87,6 +92,9 @@ export const buildModule = async ({
       isRoot: false,
       stackNamePrefix: moduleName + "-",
       stackPathPrefix: modulePath,
+      obsolete,
+      ignore,
+      dependencies,
     },
   })
 
