@@ -58,9 +58,6 @@ export interface InternalStacksContext extends CommandContext {
   readonly rootStackGroup: StackGroup
   readonly stacks: ReadonlyArray<InternalStack>
   readonly children: ReadonlyArray<InternalStacksContext>
-  // readonly getStackGroup: (
-  //   stackGroupPath: StackGroupPath,
-  // ) => StackGroup | undefined
   readonly getStackByExactPath: (
     path: StackPath,
     stackGroupPath?: StackGroupPath,

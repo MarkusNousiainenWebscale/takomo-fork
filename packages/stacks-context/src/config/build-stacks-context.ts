@@ -178,14 +178,6 @@ export const buildStacksContext = async (
     Array.from(credentialManagers.values()).map((cm) => cm.getCallerIdentity()),
   )
 
-  // const allModules = status.getModules()
-  // const allStacks = processStackDependencies(status.getStacks(), allModules)
-  // const allStackGroups = status.getStackGroups()
-  // const stacksByPath = arrayToMap(allStacks, getStackPath)
-  //
-  // checkCyclicDependencies(stacksByPath)
-  // checkObsoleteDependencies(stacksByPath)
-
   // TODO: Handle module dependencies and dependents
 
   const allStackGroups = collectStackGroups(rootModule.root)
@@ -303,9 +295,9 @@ const createStacksContext = (
     ...moduleContext,
     credentialManager,
     templateEngine,
-    rootStackGroup, // TODO: is this needed?
     stacks,
     children,
+    rootStackGroup,
     moduleInformation,
     getStackByExactPath,
     getStacksByPath,
