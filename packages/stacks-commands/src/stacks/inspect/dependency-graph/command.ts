@@ -7,7 +7,6 @@ import { isNotObsolete } from "@takomo/stacks-model"
 import { createStacksSchemas } from "@takomo/stacks-schema"
 import { validateInput } from "@takomo/util"
 import Joi, { AnySchema } from "joi"
-import { collectStacksRecursively } from "../../list/list-stacks"
 import {
   DependencyGraphInput,
   DependencyGraphIO,
@@ -46,15 +45,12 @@ export const dependencyGraphCommand: CommandHandler<
     .then((ctx) => {
       const { timer } = input
       timer.stop()
-
-      const stacks = collectStacksRecursively(ctx).filter(isNotObsolete)
-
       const output: DependencyGraphOutput = {
         success: true,
         status: "SUCCESS",
         message: "Success",
         timer,
-        stacks,
+        stacks: ctx.stacks.filter(isNotObsolete),
         outputFormat: input.outputFormat,
       }
 

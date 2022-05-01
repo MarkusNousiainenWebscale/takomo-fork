@@ -1,7 +1,6 @@
 import { CredentialManager } from "@takomo/aws-clients"
 import { IamRoleArn } from "@takomo/aws-model"
 import { InternalCommandContext } from "@takomo/core"
-import { HookRegistry } from "@takomo/stacks-hooks"
 import {
   CommandPath,
   createStackGroup,
@@ -10,16 +9,12 @@ import {
   InternalModule,
   InternalStack,
   isWithinCommandPath,
-  ModuleInformation,
   ModulePath,
   normalizeStackPath,
-  ROOT_STACK_GROUP_PATH,
-  SchemaRegistry,
   StackGroup,
   StackGroupPath,
   StackPath,
 } from "@takomo/stacks-model"
-import { ResolverRegistry } from "@takomo/stacks-resolvers"
 import { arrayToMap, TkmLogger } from "@takomo/util"
 import R from "ramda"
 import {
@@ -27,7 +22,7 @@ import {
   checkObsoleteDependencies,
   processStackDependencies,
 } from "../dependencies"
-import { StacksConfigRepository } from "../model"
+import { ModuleContext } from "../model"
 import { buildModule } from "./build-module"
 import { buildStack } from "./build-stack"
 import { ConfigTree, StackGroupConfigNode } from "./config-tree"
@@ -37,11 +32,8 @@ export class ProcessStatus {
   readonly #stackGroups = new Map<StackGroupPath, StackGroup>()
   readonly #stacks = new Map<StackPath, InternalStack>()
   readonly #newStacks = new Map<StackPath, InternalStack>()
-  readonly #newModules = new Map<ModulePath, InternalModule>()
-  readonly #modules = new Map<ModulePath, InternalModule>()
-
-  getRootStackGroup = (): StackGroup =>
-    this.getStackGroup(ROOT_STACK_GROUP_PATH)
+  readonly #modules = new Map<StackPath, InternalModule>()
+  readonly #newModules = new Map<StackPath, InternalModule>()
 
   isStackGroupProcessed = (path: StackGroupPath): boolean =>
     this.#stackGroups.has(path)
@@ -60,8 +52,8 @@ export class ProcessStatus {
   }
 
   setModuleProcessed = (module: InternalModule): void => {
-    this.#modules.set(module.path, module)
-    this.#newModules.set(module.path, module)
+    this.#modules.set(module.moduleInformation.path, module)
+    this.#newModules.set(module.moduleInformation.path, module)
   }
 
   getStackGroup = (path: StackGroupPath): StackGroup => {
@@ -75,6 +67,8 @@ export class ProcessStatus {
 
   getNewlyProcessedStacks = (): InternalStack[] =>
     Array.from(this.#newStacks.values())
+  getNewlyProcessedModules = (): InternalModule[] =>
+    Array.from(this.#newModules.values())
   getStackGroups = (): StackGroup[] => Array.from(this.#stackGroups.values())
   getStacks = (): InternalStack[] => Array.from(this.#stacks.values())
   getModules = (): InternalModule[] => Array.from(this.#modules.values())
@@ -85,7 +79,7 @@ export class ProcessStatus {
   }
 }
 
-const populateChildrenAndStacks = (
+export const populateChildrenAndStacks = (
   stackGroup: StackGroup,
   allStacks: ReadonlyArray<InternalStack>,
   allStackGroups: ReadonlyArray<StackGroup>,
@@ -97,11 +91,11 @@ const populateChildrenAndStacks = (
       populateChildrenAndStacks(child, allStacks, allStackGroups, allModules),
     )
 
+  const modules = allModules.filter((m) => m.parentPath === stackGroup.path)
+
   const stacks = allStacks
     .filter((s) => s.stackGroupPath === stackGroup.path)
     .filter((s) => !s.ignore)
-
-  const modules = allModules.filter((m) => m.parent.path === stackGroup.path)
 
   return createStackGroup({
     ...stackGroup.toProps(),
@@ -116,14 +110,10 @@ interface ProcessStackGroupConfigNodeProps {
   readonly logger: TkmLogger
   readonly credentialManager: CredentialManager
   readonly credentialManagers: Map<IamRoleArn, CredentialManager>
-  readonly resolverRegistry: ResolverRegistry
-  readonly schemaRegistry: SchemaRegistry
-  readonly hookRegistry: HookRegistry
   readonly commandPath: CommandPath
   readonly status: ProcessStatus
   readonly node: StackGroupConfigNode
-  readonly configRepository: StacksConfigRepository
-  readonly moduleInformation: ModuleInformation
+  readonly moduleContext: ModuleContext
 }
 
 const processStackGroupConfigNode = async ({
@@ -131,14 +121,10 @@ const processStackGroupConfigNode = async ({
   logger,
   credentialManager,
   credentialManagers,
-  resolverRegistry,
-  schemaRegistry,
-  hookRegistry,
   commandPath,
   status,
   node,
-  configRepository,
-  moduleInformation,
+  moduleContext,
 }: ProcessStackGroupConfigNodeProps): Promise<void> => {
   logger.trace(`Process stack group config node with path '${node.path}'`)
   if (!isWithinCommandPath(commandPath, node.path)) {
@@ -160,7 +146,7 @@ const processStackGroupConfigNode = async ({
       ctx,
       logger,
       node,
-      schemaRegistry,
+      moduleContext,
       parent,
     )
 
@@ -186,12 +172,8 @@ const processStackGroupConfigNode = async ({
         logger,
         credentialManagers,
         moduleConfigNode,
-        configRepository,
-        hookRegistry,
-        resolverRegistry,
-        schemaRegistry,
-        parentModuleInformation: moduleInformation,
-        stackGroup: currentStackGroup,
+        moduleContext,
+        parent: currentStackGroup,
         defaultCredentialManager: credentialManager,
       }),
     ),
@@ -212,14 +194,11 @@ const processStackGroupConfigNode = async ({
         logger,
         credentialManager,
         credentialManagers,
-        resolverRegistry,
-        schemaRegistry,
-        hookRegistry,
         stack,
         status.getStackGroup(node.path),
         commandPath,
         status,
-        moduleInformation,
+        moduleContext,
       ),
     ),
   )
@@ -236,14 +215,10 @@ const processStackGroupConfigNode = async ({
         logger,
         credentialManager,
         credentialManagers,
-        resolverRegistry,
-        schemaRegistry,
-        hookRegistry,
         commandPath,
         status,
+        moduleContext,
         node: child,
-        configRepository,
-        moduleInformation,
       }),
     ),
   )
@@ -254,13 +229,10 @@ interface ProcessConfigTreeProps {
   readonly logger: TkmLogger
   readonly credentialManager: CredentialManager
   readonly credentialManagers: Map<IamRoleArn, CredentialManager>
-  readonly resolverRegistry: ResolverRegistry
-  readonly schemaRegistry: SchemaRegistry
-  readonly hookRegistry: HookRegistry
   readonly commandPath: CommandPath
   readonly configTree: ConfigTree
-  readonly configRepository: StacksConfigRepository
-  readonly moduleInformation: ModuleInformation
+  readonly moduleContext: ModuleContext
+  readonly parentPath?: StackGroupPath
 }
 
 export const processConfigTree = async ({
@@ -268,16 +240,19 @@ export const processConfigTree = async ({
   logger,
   credentialManager,
   credentialManagers,
-  resolverRegistry,
-  schemaRegistry,
-  hookRegistry,
   commandPath,
   configTree,
-  configRepository,
-  moduleInformation,
-}: ProcessConfigTreeProps): Promise<StackGroup> => {
-  const item = configTree.rootStackGroup
+  moduleContext,
+  parentPath,
+}: ProcessConfigTreeProps): Promise<InternalModule> => {
+  logger.debugObject(
+    `Process config tree of module:`,
+    moduleContext.moduleInformation,
+  )
+
   const status = new ProcessStatus()
+
+  const item = configTree.rootStackGroup
 
   let commandPaths = [commandPath]
   while (commandPaths.length > 0) {
@@ -289,14 +264,10 @@ export const processConfigTree = async ({
         logger,
         credentialManager,
         credentialManagers,
-        resolverRegistry,
-        schemaRegistry,
-        hookRegistry,
-        commandPath: cp,
         status,
+        moduleContext,
+        commandPath: cp,
         node: item,
-        configRepository,
-        moduleInformation,
       })
     }
 
@@ -317,22 +288,43 @@ export const processConfigTree = async ({
         }, new Array<StackPath>()),
     )
 
+    // TODO: newly processed modules
+
     status.reset()
   }
 
   const allModules = status.getModules()
-  const modulesMap = arrayToMap(allModules, getModulePath)
-  const allStacks = processStackDependencies(status.getStacks(), modulesMap)
+  const allStacks = processStackDependencies(status.getStacks(), allModules)
   const allStackGroups = status.getStackGroups()
-  const root = status.getRootStackGroup()
+  const rootStackGroup = status.getStackGroups().find((s) => s.root)
   const stacksByPath = arrayToMap(allStacks, getStackPath)
 
-  const modulePaths = allModules.map(getModulePath)
+  const moduleByPath = arrayToMap(allModules, getModulePath)
 
-  checkCyclicDependencies(stacksByPath, modulePaths)
-  checkObsoleteDependencies(stacksByPath, modulePaths)
+  // TODO: Handle cyclic deps from modules
+  checkCyclicDependencies(stacksByPath, moduleByPath)
 
-  // TODO: Handle module dependencies and dependents
+  // TODO: Handle obsolete modules
+  checkObsoleteDependencies(stacksByPath, moduleByPath)
+  //
+  // // TODO: Handle module dependencies and dependents
+  //
+  if (!rootStackGroup) {
+    throw new Error(
+      `Expected root stack group to exist with path: ${moduleContext.moduleInformation.path}`,
+    )
+  }
 
-  return populateChildrenAndStacks(root, allStacks, allStackGroups, allModules)
+  const root = populateChildrenAndStacks(
+    rootStackGroup,
+    allStacks,
+    allStackGroups,
+    allModules,
+  )
+
+  return {
+    root,
+    parentPath,
+    moduleInformation: moduleContext.moduleInformation,
+  }
 }

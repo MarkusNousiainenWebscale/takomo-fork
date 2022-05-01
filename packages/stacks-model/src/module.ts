@@ -1,5 +1,4 @@
-import { InternalStacksContext } from "./context"
-import { StackGroup } from "./stack-group"
+import { StackGroup, StackGroupPath } from "./stack-group"
 
 /**
  * Module path
@@ -25,11 +24,12 @@ export type ModuleName = string
  * @hidden
  */
 export interface InternalModule {
-  readonly path: ModulePath
-  readonly name: ModuleName
-  readonly ctx: InternalStacksContext
-  readonly parent: StackGroup
+  readonly parentPath?: StackGroupPath
+  // readonly name: ModuleName
+  // readonly ctx: InternalStacksContext
+  // readonly parent: StackGroup
   readonly root: StackGroup
+  readonly moduleInformation: ModuleInformation
 }
 
 /**

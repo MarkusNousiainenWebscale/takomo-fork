@@ -1,20 +1,17 @@
 import { CredentialManager } from "@takomo/aws-clients"
 import { IamRoleArn } from "@takomo/aws-model"
 import { InternalCommandContext } from "@takomo/core"
-import { HookRegistry } from "@takomo/stacks-hooks"
 import {
   InternalModule,
-  ModuleInformation,
   ROOT_STACK_GROUP_PATH,
-  SchemaRegistry,
   StackGroup,
 } from "@takomo/stacks-model"
-import { ResolverRegistry } from "@takomo/stacks-resolvers"
 import { TkmLogger } from "@takomo/util"
-import { StacksConfigRepository } from "../model"
-import { buildChildStacksContext } from "./build-stacks-context"
+import { ModuleContext } from "../model"
+import { createModuleContext } from "./build-stacks-context"
 import { ModuleConfigNode } from "./config-tree"
 import { createVariablesForModuleConfigFile } from "./create-variables-for-module-config-file"
+import { processConfigTree } from "./process-config-tree"
 
 interface BuildModuleProps {
   readonly ctx: InternalCommandContext
@@ -22,12 +19,8 @@ interface BuildModuleProps {
   readonly defaultCredentialManager: CredentialManager
   readonly credentialManagers: Map<IamRoleArn, CredentialManager>
   readonly moduleConfigNode: ModuleConfigNode
-  readonly stackGroup: StackGroup
-  readonly configRepository: StacksConfigRepository
-  readonly resolverRegistry: ResolverRegistry
-  readonly schemaRegistry: SchemaRegistry
-  readonly hookRegistry: HookRegistry
-  readonly parentModuleInformation: ModuleInformation
+  readonly parent: StackGroup
+  readonly moduleContext: ModuleContext
 }
 
 export const buildModule = async ({
@@ -35,52 +28,33 @@ export const buildModule = async ({
   logger,
   credentialManagers,
   defaultCredentialManager,
-  stackGroup,
+  parent,
   moduleConfigNode,
-  configRepository,
-  resolverRegistry,
-  schemaRegistry,
-  hookRegistry,
-  parentModuleInformation,
+  moduleContext,
 }: BuildModuleProps): Promise<InternalModule> => {
   const moduleVariables = createVariablesForModuleConfigFile(
     ctx.variables,
-    stackGroup,
+    parent,
     moduleConfigNode.path,
   )
 
   const moduleConfig = await moduleConfigNode.getConfig(moduleVariables)
-  const modulePath = parentModuleInformation.isRoot
+  const modulePath = moduleContext.moduleInformation.isRoot
     ? moduleConfigNode.path
-    : parentModuleInformation.path + moduleConfigNode.path
-  const moduleName = parentModuleInformation.isRoot
+    : moduleContext.moduleInformation.path + moduleConfigNode.path
+  const moduleName = moduleContext.moduleInformation.isRoot
     ? moduleConfig.name
-    : parentModuleInformation.name + "-" + moduleConfig.name
+    : moduleContext.moduleInformation.name + "-" + moduleConfig.name
 
   const moduleConfigRepository =
-    await configRepository.getStacksConfigRepositoryForModule(
+    await moduleContext.configRepository.getStacksConfigRepositoryForModule(
       moduleConfig.id,
       moduleConfig.version,
     )
 
-  const moduleStacksContext = await buildChildStacksContext({
-    ctx,
-    credentialManagers,
-    hookRegistry,
-    resolverRegistry,
-    schemaRegistry,
-    additionalConfiguration: {
-      schemasDir: [],
-      partialsDir: [],
-      helpers: [],
-      helpersDir: [],
-      resolvers: [],
-    },
+  const childModuleContext = await createModuleContext({
     logger,
-    commandPath: ROOT_STACK_GROUP_PATH,
     configRepository: moduleConfigRepository,
-    ignoreDependencies: false,
-    credentialManager: defaultCredentialManager,
     moduleInformation: {
       path: modulePath,
       name: moduleName,
@@ -90,11 +64,18 @@ export const buildModule = async ({
     },
   })
 
-  return {
-    name: moduleName,
-    path: modulePath,
-    ctx: moduleStacksContext,
-    parent: stackGroup,
-    root: moduleStacksContext.rootStackGroup,
-  }
+  moduleContext.children.push(childModuleContext)
+
+  const configTree = await moduleConfigRepository.buildConfigTree()
+
+  return await processConfigTree({
+    ctx,
+    logger,
+    credentialManagers,
+    configTree,
+    credentialManager: defaultCredentialManager,
+    commandPath: ROOT_STACK_GROUP_PATH,
+    moduleContext: childModuleContext,
+    parentPath: parent.path,
+  })
 }

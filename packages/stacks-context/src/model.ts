@@ -6,6 +6,7 @@ import {
   CommandPath,
   InternalStack,
   ModuleId,
+  ModuleInformation,
   ModuleVersion,
   Resolver,
   ResolverInput,
@@ -222,4 +223,16 @@ export interface StacksConfigRepository {
     moduleId: ModuleId,
     moduleVersion: ModuleVersion,
   ) => Promise<boolean>
+}
+
+/**
+ * @hidden
+ */
+export interface ModuleContext {
+  readonly configRepository: StacksConfigRepository
+  readonly hookRegistry: HookRegistry
+  readonly resolverRegistry: ResolverRegistry
+  readonly schemaRegistry: SchemaRegistry
+  readonly moduleInformation: ModuleInformation
+  readonly children: Array<ModuleContext>
 }

@@ -1,10 +1,13 @@
 import {
   createStackGroup,
+  ModuleInformation,
   ROOT_STACK_GROUP_PATH,
   StackGroup,
 } from "@takomo/stacks-model"
 
-export const createRootStackGroup = (): StackGroup =>
+export const createRootStackGroup = (
+  moduleInformation: ModuleInformation,
+): StackGroup =>
   createStackGroup({
     name: ROOT_STACK_GROUP_PATH,
     regions: [],
@@ -19,4 +22,5 @@ export const createRootStackGroup = (): StackGroup =>
     ignore: false,
     obsolete: false,
     terminationProtection: false,
+    moduleInformation,
   })

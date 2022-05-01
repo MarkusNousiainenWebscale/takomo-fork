@@ -1,8 +1,4 @@
-import {
-  CommandPath,
-  InternalStack,
-  InternalStacksContext,
-} from "@takomo/stacks-model"
+import { CommandPath, InternalStack } from "@takomo/stacks-model"
 import { TakomoError } from "@takomo/util"
 
 export const isStackGroupPath = (commandPath: CommandPath): boolean =>
@@ -29,14 +25,4 @@ export const validateStackCredentialManagersWithAllowedAccountIds = async (
       )
     }
   })
-}
-
-export const collectStacksRecursively = (
-  ctx: InternalStacksContext,
-): ReadonlyArray<InternalStack> => {
-  const moduleStacks = ctx.modules
-    .map((module) => collectStacksRecursively(module.ctx))
-    .flat()
-
-  return [...ctx.stacks, ...moduleStacks]
 }

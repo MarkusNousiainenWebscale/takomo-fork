@@ -11,73 +11,73 @@ import {
 } from "@takomo/stacks-model"
 import { arrayToMap, TakomoError } from "@takomo/util"
 import R from "ramda"
-import { collectStacksRecursively } from "./common"
 import { ObsoleteDependenciesError } from "./errors"
 
 export const checkCyclicDependenciesForStack = (
   stack: InternalStack,
   stacks: Map<StackPath, InternalStack>,
-  modulePaths: ReadonlyArray<ModulePath>,
+  modules: Map<ModulePath, InternalModule>,
   collectedDependencies: ReadonlyArray<StackPath>,
 ): void => {
   if (stack.dependencies.length === 0) {
     return
   }
 
-  const isNotModuleDependency = (dependency: StackPath): boolean =>
-    !modulePaths.some((modulePath) => dependency.startsWith(modulePath))
+  stack.dependencies
+    .filter((d) => !isModulePath(d))
+    .forEach((d) => {
+      if (collectedDependencies.includes(d)) {
+        throw new TakomoError(
+          `Cyclic dependency detected: ${collectedDependencies.join(
+            " -> ",
+          )} -> ${d}`,
+        )
+      }
 
-  stack.dependencies.filter(isNotModuleDependency).forEach((d) => {
-    if (collectedDependencies.includes(d)) {
-      throw new TakomoError(
-        `Cyclic dependency detected: ${collectedDependencies.join(
-          " -> ",
-        )} -> ${d}`,
-      )
-    }
+      const nextStack = stacks.get(d)
+      if (!nextStack) {
+        throw new Error(`Expected stack to exists with stack path: ${d}`)
+      }
 
-    const nextStack = stacks.get(d)
-    if (!nextStack) {
-      throw new Error(`Expected stack to exists with stack path: ${d}`)
-    }
-
-    checkCyclicDependenciesForStack(nextStack, stacks, modulePaths, [
-      ...collectedDependencies,
-      d,
-    ])
-  })
+      checkCyclicDependenciesForStack(nextStack, stacks, modules, [
+        ...collectedDependencies,
+        d,
+      ])
+    })
 }
 
 export const checkCyclicDependencies = (
   stacks: Map<StackPath, InternalStack>,
-  modulePaths: ReadonlyArray<ModulePath>,
+  modules: Map<ModulePath, InternalModule>,
 ): void => {
   stacks.forEach((s) =>
-    checkCyclicDependenciesForStack(s, stacks, modulePaths, [s.path]),
+    checkCyclicDependenciesForStack(s, stacks, modules, [s.path]),
   )
 }
 
 export const checkObsoleteDependencies = (
   stacks: Map<StackPath, InternalStack>,
-  modulePaths: ReadonlyArray<ModulePath>,
+  modules: Map<ModulePath, InternalModule>,
 ): void => {
-  const isNotModuleDependency = (dependency: StackPath): boolean =>
-    !modulePaths.some((modulePath) => dependency.startsWith(modulePath))
-
   const stacksWithObsoleteDependencies = Array.from(stacks.values())
     .filter((stack) => !stack.obsolete)
     .map((stack) => {
-      const obsoleteDependencies = stack.dependencies
-        .filter(isNotModuleDependency)
-        .filter((dependencyPath) => {
-          const dependencyStack = stacks.get(dependencyPath)
-          if (!dependencyStack) {
-            throw new Error(
-              `Expected stack to found with path: ${dependencyPath}`,
-            )
+      const obsoleteDependencies = stack.dependencies.filter(
+        (dependencyPath) => {
+          if (isModulePath(dependencyPath)) {
+            // TODO: Handle obsolete modules
+            return false
+          } else {
+            const dependencyStack = stacks.get(dependencyPath)
+            if (!dependencyStack) {
+              throw new Error(
+                `Expected stack to found with path: ${dependencyPath}`,
+              )
+            }
+            return dependencyStack.obsolete
           }
-          return dependencyStack.obsolete
-        })
+        },
+      )
 
       return {
         from: stack.path,
@@ -137,26 +137,27 @@ export const populateDependents = (stacks: StackProps[]): StackProps[] =>
 
 export const processStackDependencies = (
   stacks: ReadonlyArray<InternalStack>,
-  modulesMap: Map<ModulePath, InternalModule>,
+  modulePaths: ReadonlyArray<InternalModule>,
 ): ReadonlyArray<InternalStack> => {
   const processed = stacks
     .map((stack) => stack.toProps())
     .map((stack) => {
       const stackDependencies = stack.dependencies.map((dependency) => {
         if (isModulePath(dependency)) {
-          const matchingModule = modulesMap.get(dependency)
-          if (!matchingModule) {
+          if (
+            !modulePaths.find((m) => m.moduleInformation.path === dependency)
+          ) {
             throw new TakomoError(
               `Dependency ${dependency} in stack ${stack.path} refers to a non-existing module`,
             )
           }
 
-          return collectStacksRecursively(matchingModule.ctx).map(getStackPath)
+          return dependency
         }
 
         const matching = stacks
           .filter((other) => other.path.startsWith(dependency))
-          .map((other) => other.path)
+          .map(getStackPath)
 
         if (matching.length === 0) {
           throw new TakomoError(

@@ -5,14 +5,12 @@ import {
 } from "@takomo/stacks-context"
 import { InternalStacksContext } from "@takomo/stacks-model"
 import { createStacksSchemas } from "@takomo/stacks-schema"
-import { validateInput } from "@takomo/util"
+import { arrayToMap, collectFromHierarchy, validateInput } from "@takomo/util"
 import Joi, { AnySchema } from "joi"
 import {
   StacksOperationOutput,
   StacksUndeployOperationInput,
 } from "../../model"
-import { collectStacksContexts } from "../common/collect-stacks-contexts"
-import { collectStacksRecursively } from "../list/list-stacks"
 import { executeUndeployContext } from "./execute-undeploy-context"
 import { UndeployStacksIO } from "./model"
 import { buildStacksUndeployPlan } from "./plan"
@@ -43,7 +41,7 @@ const undeployStacks = async (
   const modifiedInput = await modifyInput(input, ctx, io)
 
   const plan = await buildStacksUndeployPlan(
-    collectStacksRecursively(ctx),
+    ctx.stacks,
     modifiedInput.commandPath,
     modifiedInput.ignoreDependencies,
     modifiedInput.prune,
@@ -51,7 +49,8 @@ const undeployStacks = async (
 
   await validateStacksUndeployPlan(plan)
 
-  const ctxMap = collectStacksContexts(ctx)
+  const ctxs = collectFromHierarchy(ctx, (ctx) => ctx.children)
+  const ctxMap = arrayToMap(ctxs, (ctx) => ctx.moduleInformation.path)
 
   return executeUndeployContext(
     ctxMap,

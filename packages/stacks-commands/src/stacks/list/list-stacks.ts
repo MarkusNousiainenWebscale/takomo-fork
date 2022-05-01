@@ -1,22 +1,7 @@
-import {
-  InternalStack,
-  InternalStacksContext,
-  isNotObsolete,
-  isWithinCommandPath,
-} from "@takomo/stacks-model"
+import { InternalStacksContext, isNotObsolete } from "@takomo/stacks-model"
 import { TkmLogger } from "@takomo/util"
 import { loadCurrentCfStacks } from "../common/load-current-cf-stacks"
 import { ListStacksInput, ListStacksOutput } from "./model"
-
-export const collectStacksRecursively = (
-  ctx: InternalStacksContext,
-): ReadonlyArray<InternalStack> => {
-  const moduleStacks = ctx.modules
-    .map((module) => collectStacksRecursively(module.ctx))
-    .flat()
-
-  return [...ctx.stacks, ...moduleStacks]
-}
 
 export const listStacks = async (
   ctx: InternalStacksContext,
@@ -25,8 +10,8 @@ export const listStacks = async (
 ): Promise<ListStacksOutput> => {
   const { timer, commandPath, outputFormat } = input
 
-  const stacksWithinCommandPath = collectStacksRecursively(ctx)
-    .filter((stack) => isWithinCommandPath(stack.path, commandPath))
+  const stacksWithinCommandPath = ctx.stacks
+    .filter((stack) => stack.path.startsWith(commandPath))
     .filter(isNotObsolete)
 
   const stackPairs = await loadCurrentCfStacks(logger, stacksWithinCommandPath)

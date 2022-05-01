@@ -9,7 +9,7 @@ import {
 import { CommandRole, Project, Vars } from "@takomo/core"
 import { TemplateBucketConfig, TimeoutConfig } from "./common"
 import { HookConfig } from "./hook"
-import { InternalModule } from "./module"
+import { InternalModule, ModuleInformation } from "./module"
 import { Schemas } from "./schemas"
 import { InternalStack } from "./stack"
 
@@ -29,8 +29,8 @@ export interface StackGroupProps {
   parentPath?: StackGroupPath
   templateBucket?: TemplateBucketConfig
   children: ReadonlyArray<StackGroup>
-  stacks: ReadonlyArray<InternalStack>
   modules: ReadonlyArray<InternalModule>
+  stacks: ReadonlyArray<InternalStack>
   timeout?: TimeoutConfig
   tags: Map<TagKey, TagValue>
   hooks: ReadonlyArray<HookConfig>
@@ -42,6 +42,7 @@ export interface StackGroupProps {
   stackPolicy?: StackPolicyBody
   stackPolicyDuringUpdate?: StackPolicyBody
   schemas?: Schemas
+  moduleInformation: ModuleInformation
 }
 
 /**
@@ -58,8 +59,8 @@ export interface StackGroup {
   readonly root: boolean
   readonly templateBucket?: TemplateBucketConfig
   readonly children: ReadonlyArray<StackGroup>
-  readonly stacks: ReadonlyArray<InternalStack>
   readonly modules: ReadonlyArray<InternalModule>
+  readonly stacks: ReadonlyArray<InternalStack>
   readonly timeout?: TimeoutConfig
   readonly tags: Map<TagKey, TagValue>
   readonly hooks: ReadonlyArray<HookConfig>
@@ -72,6 +73,7 @@ export interface StackGroup {
   readonly stackPolicyDuringUpdate?: StackPolicyBody
   readonly toProps: () => StackGroupProps
   readonly schemas?: Schemas
+  readonly moduleInformation: ModuleInformation
 }
 
 /**
@@ -82,6 +84,7 @@ export const createStackGroup = (props: StackGroupProps): StackGroup => {
     accountIds,
     capabilities,
     children,
+    modules,
     commandRole,
     data,
     hooks,
@@ -93,7 +96,6 @@ export const createStackGroup = (props: StackGroupProps): StackGroup => {
     project,
     regions,
     stacks,
-    modules,
     tags,
     templateBucket,
     terminationProtection,
@@ -101,12 +103,14 @@ export const createStackGroup = (props: StackGroupProps): StackGroup => {
     stackPolicy,
     stackPolicyDuringUpdate,
     schemas,
+    moduleInformation,
   } = props
 
   return {
     accountIds,
     capabilities,
     children,
+    modules,
     commandRole,
     data,
     hooks,
@@ -118,7 +122,6 @@ export const createStackGroup = (props: StackGroupProps): StackGroup => {
     project,
     regions,
     stacks,
-    modules,
     tags,
     templateBucket,
     terminationProtection,
@@ -126,6 +129,7 @@ export const createStackGroup = (props: StackGroupProps): StackGroup => {
     stackPolicy,
     stackPolicyDuringUpdate,
     schemas,
+    moduleInformation,
     root: parentPath === undefined,
     toProps: () => props,
   }

@@ -5,11 +5,9 @@ import {
 } from "@takomo/stacks-context"
 import { InternalStacksContext } from "@takomo/stacks-model"
 import { createStacksSchemas } from "@takomo/stacks-schema"
-import { validateInput } from "@takomo/util"
+import { arrayToMap, collectFromHierarchy, validateInput } from "@takomo/util"
 import Joi, { AnySchema } from "joi"
 import { StacksDeployOperationInput, StacksOperationOutput } from "../../model"
-import { collectStacksContexts } from "../common/collect-stacks-contexts"
-import { collectStacksRecursively } from "../list/list-stacks"
 import { executeDeployContext } from "./execute-deploy-context"
 import { DeployStacksIO } from "./model"
 import { buildStacksDeployPlan } from "./plan"
@@ -39,7 +37,7 @@ const deployStacks = async (
   const modifiedInput = await modifyInput(input, ctx, io)
 
   const plan = await buildStacksDeployPlan(
-    collectStacksRecursively(ctx),
+    ctx.stacks,
     modifiedInput.commandPath,
     modifiedInput.ignoreDependencies,
     io,
@@ -47,7 +45,8 @@ const deployStacks = async (
 
   await validateStacksDeployPlan(plan)
 
-  const ctxMap = collectStacksContexts(ctx)
+  const ctxs = collectFromHierarchy(ctx, (ctx) => ctx.children)
+  const ctxMap = arrayToMap(ctxs, (ctx) => ctx.moduleInformation.path)
 
   return executeDeployContext(
     ctxMap,

@@ -1,7 +1,7 @@
 import { CredentialManager } from "@takomo/aws-clients"
 import { CommandContext } from "@takomo/core"
 import { TemplateEngine } from "@takomo/util"
-import { InternalModule, ModuleInformation } from "./module"
+import { ModuleInformation } from "./module"
 import { InternalStack, Stack, StackPath } from "./stack"
 import { StackGroup, StackGroupPath } from "./stack-group"
 
@@ -57,7 +57,7 @@ export interface InternalStacksContext extends CommandContext {
   readonly templateEngine: TemplateEngine
   readonly rootStackGroup: StackGroup
   readonly stacks: ReadonlyArray<InternalStack>
-  readonly modules: ReadonlyArray<InternalModule>
+  readonly children: ReadonlyArray<InternalStacksContext>
   readonly getStackGroup: (
     stackGroupPath: StackGroupPath,
   ) => StackGroup | undefined

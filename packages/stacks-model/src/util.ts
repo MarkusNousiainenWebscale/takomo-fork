@@ -50,7 +50,8 @@ export const isWithinCommandPath = (
 /**
  * @hidden
  */
-export const getModulePath = ({ path }: InternalModule): ModulePath => path
+export const getModulePath = (module: InternalModule): ModulePath =>
+  module.moduleInformation.path
 
 /**
  * @hidden

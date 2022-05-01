@@ -2,6 +2,7 @@ import { OutputFormat, resolveCommandOutputBase } from "@takomo/core"
 import {
   CommandPath,
   InternalStacksContext,
+  ModulePath,
   StackPath,
   StackResult,
 } from "@takomo/stacks-model"
@@ -91,7 +92,7 @@ const executeStacksInParallel = async (
 }
 
 export const executeDeployContext = async (
-  ctxMap: Map<CommandPath, InternalStacksContext>,
+  ctxMap: Map<ModulePath, InternalStacksContext>,
   input: StacksDeployOperationInput,
   io: DeployStacksIO,
   plan: StacksDeployPlan,

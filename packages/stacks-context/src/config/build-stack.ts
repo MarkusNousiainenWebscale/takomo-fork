@@ -3,21 +3,17 @@ import { IamRoleArn, StackName } from "@takomo/aws-model"
 import { createAwsSchemas } from "@takomo/aws-schema"
 import { CommandContext, Vars } from "@takomo/core"
 import { TemplateConfig } from "@takomo/stacks-config"
-import { HookRegistry } from "@takomo/stacks-hooks"
 import {
   CommandPath,
   createStack,
   InternalStack,
   isWithinCommandPath,
-  ModuleInformation,
   normalizeStackPath,
-  SchemaRegistry,
   StackGroup,
   StackPath,
   StackProps,
   Template,
 } from "@takomo/stacks-model"
-import { ResolverRegistry } from "@takomo/stacks-resolvers"
 import {
   deepCopy,
   mapToObject,
@@ -27,6 +23,7 @@ import {
 } from "@takomo/util"
 import { AnySchema } from "joi"
 import R from "ramda"
+import { ModuleContext } from "../model"
 import { StackConfigNode } from "./config-tree"
 import { createVariablesForStackConfigFile } from "./create-variables-for-stack-config-file"
 import { getCredentialManager } from "./get-credential-provider"
@@ -115,20 +112,17 @@ export const buildStack = async (
   logger: TkmLogger,
   defaultCredentialManager: CredentialManager,
   credentialManagers: Map<IamRoleArn, CredentialManager>,
-  resolverRegistry: ResolverRegistry,
-  schemaRegistry: SchemaRegistry,
-  hookRegistry: HookRegistry,
   node: StackConfigNode,
   stackGroup: StackGroup,
   commandPath: CommandPath,
   status: ProcessStatus,
-  moduleInformation: ModuleInformation,
+  moduleContext: ModuleContext,
 ): Promise<InternalStack[]> => {
   const { stackName } = createAwsSchemas({ regions: ctx.regions })
 
   logger.debug(`Build stack with path '${node.path}'`)
 
-  const stackPath = moduleInformation.stackPathPrefix + node.path
+  const stackPath = moduleContext.moduleInformation.stackPathPrefix + node.path
   const stackVariables = createVariablesForStackConfigFile(
     ctx.variables,
     stackGroup,
@@ -138,7 +132,7 @@ export const buildStack = async (
   const stackConfig = await node.getConfig(stackVariables)
 
   const name =
-    moduleInformation.stackNamePrefix +
+    moduleContext.moduleInformation.stackNamePrefix +
     (stackConfig.name ??
       makeStackName(stackPath, stackConfig.project || stackGroup.project))
 
@@ -156,8 +150,8 @@ export const buildStack = async (
     ctx,
     stackPath,
     stackConfig.parameters,
-    resolverRegistry,
-    schemaRegistry,
+    moduleContext.resolverRegistry,
+    moduleContext.schemaRegistry,
   )
 
   R.uniq(
@@ -178,7 +172,7 @@ export const buildStack = async (
 
   const accountIds = stackConfig.accountIds || stackGroup.accountIds
   const hookConfigs = [...stackGroup.hooks, ...stackConfig.hooks]
-  const hooks = await initializeHooks(hookConfigs, hookRegistry)
+  const hooks = await initializeHooks(hookConfigs, moduleContext.hookRegistry)
 
   const commandRole = stackConfig.commandRole || stackGroup.commandRole
   const credentialManager = await getCredentialManager(
@@ -228,7 +222,7 @@ export const buildStack = async (
 
         const schemas = await mergeStackSchemas(
           ctx,
-          schemaRegistry,
+          moduleContext.schemaRegistry,
           exactPath,
           stackGroup.schemas,
           stackConfig.schemas,
@@ -255,7 +249,7 @@ export const buildStack = async (
           cloudFormationClient,
           stackPolicy,
           stackPolicyDuringUpdate,
-          moduleInformation,
+          moduleInformation: moduleContext.moduleInformation,
           path: exactPath,
           stackGroupPath: stackGroup.path,
           project: stackConfig.project ?? stackGroup.project,
