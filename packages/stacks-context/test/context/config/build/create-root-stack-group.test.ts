@@ -1,8 +1,15 @@
+import {
+  createRootModuleInformation,
+  createStackGroupDefaults,
+} from "@takomo/stacks-model"
 import { createRootStackGroup } from "../../../../src/config/create-root-stack-group"
 
 describe("create root stack group config", () => {
   test("for root", () => {
-    const root = createRootStackGroup()
+    const root = createRootStackGroup(
+      createRootModuleInformation(),
+      createStackGroupDefaults(),
+    )
 
     expect(root.path).toEqual("/")
     expect(root.root).toEqual(true)

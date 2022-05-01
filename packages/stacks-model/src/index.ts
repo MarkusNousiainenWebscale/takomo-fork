@@ -34,7 +34,9 @@ export {
 } from "./stack"
 export {
   createStackGroup,
+  createStackGroupDefaults,
   StackGroup,
+  StackGroupDefaults,
   StackGroupName,
   StackGroupPath,
   StackGroupProps,

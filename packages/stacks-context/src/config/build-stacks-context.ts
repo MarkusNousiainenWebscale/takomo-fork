@@ -4,6 +4,7 @@ import { InternalCommandContext } from "@takomo/core"
 import {
   CommandPath,
   createRootModuleInformation,
+  createStackGroupDefaults,
   getModulePath,
   InternalStack,
   InternalStacksContext,
@@ -79,6 +80,7 @@ export const buildStacksContext = async (
     configTree,
     moduleContext,
     commandPath: commandPath ?? ROOT_STACK_GROUP_PATH,
+    stackGroupDefaults: createStackGroupDefaults(),
   })
 
   await Promise.all(

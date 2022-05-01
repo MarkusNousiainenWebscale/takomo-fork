@@ -12,6 +12,7 @@ import {
   ModulePath,
   normalizeStackPath,
   StackGroup,
+  StackGroupDefaults,
   StackGroupPath,
   StackPath,
 } from "@takomo/stacks-model"
@@ -114,6 +115,7 @@ interface ProcessStackGroupConfigNodeProps {
   readonly status: ProcessStatus
   readonly node: StackGroupConfigNode
   readonly moduleContext: ModuleContext
+  readonly stackGroupDefaults: StackGroupDefaults
 }
 
 const processStackGroupConfigNode = async ({
@@ -125,6 +127,7 @@ const processStackGroupConfigNode = async ({
   status,
   node,
   moduleContext,
+  stackGroupDefaults,
 }: ProcessStackGroupConfigNodeProps): Promise<void> => {
   logger.trace(`Process stack group config node with path '${node.path}'`)
   if (!isWithinCommandPath(commandPath, node.path)) {
@@ -147,6 +150,7 @@ const processStackGroupConfigNode = async ({
       logger,
       node,
       moduleContext,
+      stackGroupDefaults,
       parent,
     )
 
@@ -219,6 +223,7 @@ const processStackGroupConfigNode = async ({
         status,
         moduleContext,
         node: child,
+        stackGroupDefaults: stackGroupDefaults,
       }),
     ),
   )
@@ -232,6 +237,7 @@ interface ProcessConfigTreeProps {
   readonly commandPath: CommandPath
   readonly configTree: ConfigTree
   readonly moduleContext: ModuleContext
+  readonly stackGroupDefaults: StackGroupDefaults
   readonly parentPath?: StackGroupPath
 }
 
@@ -244,6 +250,7 @@ export const processConfigTree = async ({
   configTree,
   moduleContext,
   parentPath,
+  stackGroupDefaults,
 }: ProcessConfigTreeProps): Promise<InternalModule> => {
   logger.debugObject(
     `Process config tree of module:`,
@@ -266,6 +273,7 @@ export const processConfigTree = async ({
         credentialManagers,
         status,
         moduleContext,
+        stackGroupDefaults,
         commandPath: cp,
         node: item,
       })
@@ -329,6 +337,7 @@ export const processConfigTree = async ({
   )
 
   return {
+    ...stackGroupDefaults,
     root,
     parentPath,
     moduleInformation: moduleContext.moduleInformation,

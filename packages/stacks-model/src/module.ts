@@ -31,6 +31,8 @@ export interface InternalModule {
   // readonly parent: StackGroup
   readonly root: StackGroup
   readonly moduleInformation: ModuleInformation
+  readonly ignore: boolean
+  readonly obsolete: boolean
 }
 
 /**

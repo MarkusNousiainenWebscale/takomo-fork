@@ -1,5 +1,5 @@
 import { CommandContext } from "@takomo/core"
-import { StackGroup } from "@takomo/stacks-model"
+import { StackGroup, StackGroupDefaults } from "@takomo/stacks-model"
 import { TkmLogger } from "@takomo/util"
 import { ModuleContext } from "../model"
 import { StackGroupConfigNode } from "./config-tree"
@@ -13,11 +13,12 @@ export const doCreateStackGroup = async (
   logger: TkmLogger,
   node: StackGroupConfigNode,
   moduleContext: ModuleContext,
+  stackGroupDefaults: StackGroupDefaults,
   parent?: StackGroup,
 ): Promise<StackGroup> => {
   const stackGroupConfig = parent
     ? createStackGroupFromParent(node, parent, moduleContext.moduleInformation)
-    : createRootStackGroup(moduleContext.moduleInformation)
+    : createRootStackGroup(moduleContext.moduleInformation, stackGroupDefaults)
 
   const stackGroupVariables = createVariablesForStackGroupConfigFile(
     ctx.variables,

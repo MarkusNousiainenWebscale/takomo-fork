@@ -39,6 +39,29 @@ export const buildModule = async ({
   )
 
   const moduleConfig = await moduleConfigNode.getConfig(moduleVariables)
+
+  const ignore =
+    moduleConfig.ignore !== undefined ? moduleConfig.ignore : parent.ignore
+
+  const obsolete =
+    moduleConfig.obsolete !== undefined ? parent.obsolete : parent.obsolete
+
+  const tags = moduleConfig.inheritTags ? new Map(parent.tags) : new Map()
+
+  moduleConfig.tags.forEach((value, key) => {
+    tags.set(key, value)
+  })
+
+  const accountIds = moduleConfig.accountIds ?? parent.accountIds
+
+  const terminationProtection =
+    moduleConfig.terminationProtection !== undefined
+      ? moduleConfig.terminationProtection
+      : parent.terminationProtection
+
+  const regions =
+    moduleConfig.regions.length > 0 ? moduleConfig.regions : parent.regions
+
   const modulePath = moduleContext.moduleInformation.isRoot
     ? moduleConfigNode.path
     : moduleContext.moduleInformation.path + moduleConfigNode.path
@@ -78,5 +101,13 @@ export const buildModule = async ({
     commandPath: ROOT_STACK_GROUP_PATH,
     moduleContext: childModuleContext,
     parentPath: parent.path,
+    stackGroupDefaults: {
+      obsolete,
+      ignore,
+      tags,
+      accountIds,
+      regions,
+      terminationProtection,
+    },
   })
 }

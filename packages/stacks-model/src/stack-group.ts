@@ -19,6 +19,30 @@ export type StackGroupName = string
 /**
  * @hidden
  */
+export interface StackGroupDefaults {
+  readonly obsolete: boolean
+  readonly ignore: boolean
+  readonly terminationProtection: boolean
+  readonly tags: Map<TagKey, TagValue>
+  readonly regions: ReadonlyArray<Region>
+  readonly accountIds: ReadonlyArray<AccountId>
+}
+
+/**
+ * @hidden
+ */
+export const createStackGroupDefaults = (): StackGroupDefaults => ({
+  obsolete: false,
+  ignore: false,
+  terminationProtection: false,
+  regions: [],
+  accountIds: [],
+  tags: new Map(),
+})
+
+/**
+ * @hidden
+ */
 export interface StackGroupProps {
   name: StackGroupName
   project?: Project

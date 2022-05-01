@@ -1,5 +1,5 @@
 import { ConfigTree } from "../../src"
-import { validateCommandPath } from "../../src/config/build-stacks-context"
+import { validateCommandPath } from "../../src/config/validate-command-path"
 
 const tree: ConfigTree = {
   rootStackGroup: {
@@ -9,6 +9,7 @@ const tree: ConfigTree = {
       {
         path: "/dev",
         children: [],
+        modules: [],
         getConfig: jest.fn(),
         name: "dev",
         parentPath: undefined,
@@ -21,6 +22,7 @@ const tree: ConfigTree = {
       },
     ],
     getConfig: jest.fn(),
+    modules: [],
     stacks: [
       {
         path: "/stack-a.yml",

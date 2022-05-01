@@ -1,19 +1,28 @@
+import {
+  createRootModuleInformation,
+  createStackGroupDefaults,
+} from "@takomo/stacks-model"
 import { createRootStackGroup } from "../../../../src/config/create-root-stack-group"
 import { createStackGroupFromParent } from "../../../../src/config/create-stack-group-from-parent"
 
+const moduleInformation = createRootModuleInformation()
+const stackGroupDefaults = createStackGroupDefaults()
+
 describe("create stack group config from parent", () => {
   test("using root as parent", () => {
-    const root = createRootStackGroup()
+    const root = createRootStackGroup(moduleInformation, stackGroupDefaults)
     const group = createStackGroupFromParent(
       {
         getConfig: jest.fn(),
         name: "dev",
         path: "/dev",
         parentPath: "/",
+        modules: [],
         children: [],
         stacks: [],
       },
       root,
+      moduleInformation,
     )
 
     expect(group.path).toEqual("/dev")
@@ -30,7 +39,7 @@ describe("create stack group config from parent", () => {
   })
 
   test("using a non-root parent", () => {
-    const root = createRootStackGroup()
+    const root = createRootStackGroup(moduleInformation, stackGroupDefaults)
     const parent = createStackGroupFromParent(
       {
         getConfig: jest.fn(),
@@ -38,9 +47,11 @@ describe("create stack group config from parent", () => {
         path: "/prod",
         parentPath: "/",
         children: [],
+        modules: [],
         stacks: [],
       },
       root,
+      moduleInformation,
     )
     const group = createStackGroupFromParent(
       {
@@ -49,9 +60,11 @@ describe("create stack group config from parent", () => {
         path: "/prod/eu-central-1",
         parentPath: "/prod",
         children: [],
+        modules: [],
         stacks: [],
       },
       parent,
+      moduleInformation,
     )
 
     expect(group.path).toEqual("/prod/eu-central-1")
